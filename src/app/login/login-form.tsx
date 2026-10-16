@@ -15,15 +15,31 @@ export function LoginForm() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    getSupabaseBrowserClient().auth.getSession().then(({ data }) => {
-      const authType = new URLSearchParams(window.location.hash.slice(1)).get("type")
-        ?? new URLSearchParams(window.location.search).get("type");
-      if (data.session && (authType === "invite" || authType === "recovery")) {
+    const supabase = getSupabaseBrowserClient();
+    let recoveryEventReceived = false;
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        recoveryEventReceived = true;
         setSettingPassword(true);
-      } else if (data.session) {
-        router.replace("/dashboard");
       }
     });
+
+    const sessionCheck = window.setTimeout(() => {
+      supabase.auth.getSession().then(({ data }) => {
+        const authType = new URLSearchParams(window.location.hash.slice(1)).get("type")
+          ?? new URLSearchParams(window.location.search).get("type");
+        if (data.session && (authType === "invite" || authType === "recovery")) {
+          setSettingPassword(true);
+        } else if (data.session && !recoveryEventReceived) {
+          router.replace("/dashboard");
+        }
+      });
+    }, 500);
+
+    return () => {
+      window.clearTimeout(sessionCheck);
+      listener.subscription.unsubscribe();
+    };
   }, [router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
