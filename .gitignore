@@ -1,0 +1,21 @@
+node_modules
+.pnpm-store
+.codebase-memory
+.next
+out
+publish
+.env
+.env.local
+*.log
+.DS_Store
+*.tsbuildinfo
+
+# Local data and legacy ingestion code are never published.
+imports
+Old Code
+
+# Internal operational material stays local; the public repository only hosts
+# the static frontend and its deployment configuration.
+docs
+scripts
+supabase
