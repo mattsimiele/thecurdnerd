@@ -8,10 +8,19 @@ import { useRef } from "react";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-const chapters = [
-  { title: "Sales, without the spreadsheet chase", body: "Square revenue, refunds, discounts, and product mix arrive in one shared daily view." },
-  { title: "The story behind the top line", body: "Connect revenue to accounting categories, expenses, and margin signals from QuickBooks." },
-  { title: "Hospitality you can actually measure", body: "Bring covers, pacing, and reservation patterns alongside sales when OpenTable access is available." },
+const resources = [
+  {
+    name: "The Curd Nerd",
+    description: "Shop standards, opening and closing procedures, food handling, and daily reference material.",
+    className: "employee-resource-curd",
+    href: "",
+  },
+  {
+    name: "The Wedge",
+    description: "Service standards, opening and closing procedures, bar references, and day-to-day operating notes.",
+    className: "employee-resource-wedge",
+    href: "",
+  },
 ];
 
 export function LandingPage() {
@@ -19,82 +28,134 @@ export function LandingPage() {
 
   useGSAP(() => {
     const mm = gsap.matchMedia();
+
     mm.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from("[data-hero-word]", { yPercent: 110, opacity: 0, duration: 1.1, stagger: 0.08, ease: "power4.out" });
-      gsap.to("[data-marquee]", { xPercent: -50, duration: 24, repeat: -1, ease: "none" });
-      gsap.utils.toArray<HTMLElement>("[data-stack-card]").forEach((card, index) => {
-        gsap.fromTo(card, { scale: 0.92, opacity: 0.35 }, {
+      gsap.from("[data-intro]", {
+        y: 24,
+        opacity: 0,
+        duration: 0.85,
+        stagger: 0.1,
+        ease: "power3.out",
+      });
+
+      gsap.utils.toArray<HTMLElement>("[data-resource]").forEach((card) => {
+        gsap.from(card, {
+          y: 36,
+          opacity: 0,
+          ease: "none",
+          scrollTrigger: {
+            trigger: card,
+            start: "top 92%",
+            end: "top 70%",
+            scrub: true,
+          },
+        });
+      });
+
+      gsap.fromTo(
+        "[data-food-image]",
+        { scale: 0.82, opacity: 0.45 },
+        {
           scale: 1,
           opacity: 1,
           ease: "none",
-          scrollTrigger: { trigger: card, start: "top 85%", end: "top 35%", scrub: true },
-        });
-        if (index < chapters.length - 1) {
-          ScrollTrigger.create({ trigger: card, start: "top 18%", end: "+=65%", pin: true, pinSpacing: false });
-        }
-      });
-      gsap.utils.toArray<HTMLElement>("[data-reveal-word]").forEach((word) => {
-        gsap.fromTo(word, { opacity: 0.12 }, { opacity: 1, scrollTrigger: { trigger: word, start: "top 88%", end: "top 58%", scrub: true } });
-      });
+          scrollTrigger: {
+            trigger: "[data-food-image]",
+            start: "top bottom",
+            end: "center 55%",
+            scrub: true,
+          },
+        },
+      );
+
+      gsap.to("[data-marquee]", { xPercent: -50, duration: 34, repeat: -1, ease: "none" });
     });
-    mm.add("(prefers-reduced-motion: reduce)", () => gsap.set("[data-hero-word], [data-stack-card], [data-reveal-word]", { opacity: 1, scale: 1, yPercent: 0 }));
+
+    mm.add("(prefers-reduced-motion: reduce)", () => {
+      gsap.set("[data-intro], [data-resource], [data-food-image]", { opacity: 1, scale: 1, y: 0 });
+    });
+
     return () => mm.revert();
   }, { scope: root });
 
   return (
-    <main ref={root} className="site-shell">
-      <nav className="nav-wrap" aria-label="Main navigation">
-        <Link className="wordmark" href="/">THE CURD NERD<span>DATA HOUSE</span></Link>
-        <div className="nav-links"><a href="#platform">Platform</a><a href="#story">The view</a></div>
-        <Link className="button button-light button-small" href="/login">Manager sign in</Link>
+    <main ref={root} className="employee-shell">
+      <nav className="employee-nav" aria-label="Employee navigation">
+        <Link className="employee-wordmark" href="/">
+          <span>The Curd Nerd</span>
+          <i aria-hidden="true" />
+          <span>The Wedge</span>
+        </Link>
+        <Link className="manager-link" href="/login">Manager sales</Link>
       </nav>
 
-      <section className="hero">
-        <div className="hero-glow" />
-        <div className="hero-copy">
-          <h1 className="hero-title" aria-label="Know the business before the day gets busy">
-            <span className="clip"><span data-hero-word>Know the business</span></span>
-            <span className="clip"><span data-hero-word>before it gets busy.</span></span>
-          </h1>
-          <p>One calm, decisive view across sales, accounting, and hospitality for both of your businesses.</p>
-          <div className="hero-actions">
-            <Link className="button button-light" href="/login">Open manager portal</Link>
-            <a className="button button-ghost" href="#platform">See how it works</a>
-          </div>
+      <section className="employee-hero">
+        <div className="employee-hero-copy">
+          <p data-intro className="employee-eyebrow">Employee home</p>
+          <h1 data-intro>What do you need for today?</h1>
+          <p data-intro className="employee-intro">
+            Find the operating information for your location. Choose a business below to get started.
+          </p>
         </div>
-        <div className="hero-image-wrap">
-          <img src="https://picsum.photos/seed/cheese-cellar-hospitality/1920/1080" alt="A warmly lit hospitality counter" />
+        <figure data-intro className="employee-hero-image">
+          <img
+            src="https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=1600&q=85"
+            alt="A selection of cheese ready for service"
+          />
+        </figure>
+      </section>
+
+      <section className="employee-resources" aria-labelledby="resources-title">
+        <header className="employee-section-heading">
+          <p>Standard operating procedures</p>
+          <h2 id="resources-title">Choose a business.</h2>
+        </header>
+        <div className="employee-resource-grid">
+          {resources.map((resource) => (
+            <article data-resource className={`employee-resource ${resource.className}`} key={resource.name}>
+              <h3>{resource.name}</h3>
+              <p>{resource.description}</p>
+              {resource.href ? (
+                <a href={resource.href}>Open SOPs <span aria-hidden="true">↗</span></a>
+              ) : (
+                <span className="resource-pending">SOP link coming soon</span>
+              )}
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="marquee" aria-label="Connected data sources">
-        <div data-marquee className="marquee-track">
-          {[0, 1].map((set) => <div className="marquee-set" key={set}><span>SQUARE</span><i /><span>QUICKBOOKS</span><i /><span>OPENTABLE</span><i /><span>TWO BUSINESSES</span><i /></div>)}
+      <section className="employee-photo-band" aria-label="From the counter">
+        <div data-food-image className="employee-photo-frame">
+          <img
+            src="https://images.unsplash.com/photo-1573812461383-e5f8b759d12e?auto=format&fit=crop&w=2000&q=85"
+            alt="An abundant cheese and charcuterie board"
+          />
         </div>
       </section>
 
-      <section id="platform" className="platform-section">
-        <header className="section-heading"><p>Clarity, daily</p><h2>A dashboard that answers the next question.</h2></header>
-        <div className="bento-grid">
-          <article className="bento bento-wide"><div><span>Live pulse</span><h3>Revenue and pace, in plain sight.</h3><p>Today against plan, last week, and last year with the reasons for movement close at hand.</p></div><div className="mini-chart"><i style={{ height: "42%" }} /><i style={{ height: "58%" }} /><i style={{ height: "51%" }} /><i style={{ height: "76%" }} /><i style={{ height: "88%" }} /><i style={{ height: "72%" }} /><i style={{ height: "94%" }} /></div></article>
-          <article className="bento bento-image"><img src="https://picsum.photos/seed/artisan-cheese-counter/1200/1200" alt="Artisan food counter" /><div><span>Two operations</span><h3>Separate when useful. Together when needed.</h3></div></article>
-          <article className="bento"><span>Margin</span><strong>63.8%</strong><p>Accounting context beside operational performance.</p></article>
-          <article className="bento bento-dark"><span>Manager brief</span><h3>Three signals deserve your attention today.</h3><div className="signal"><i /> Labor pacing above target</div><div className="signal positive"><i /> Average check trending up</div></article>
-          <article className="bento"><span>Guest demand</span><strong>184</strong><p>Projected covers, pacing, cancellations, and no-shows.</p></article>
+      <section className="employee-marquee" aria-hidden="true">
+        <div data-marquee className="employee-marquee-track">
+          {[0, 1].map((set) => (
+            <div className="employee-marquee-set" key={set}>
+              <span>Good food</span><i />
+              <span>Clear standards</span><i />
+              <span>Warm service</span><i />
+              <span>Two businesses, one team</span><i />
+            </div>
+          ))}
         </div>
       </section>
 
-      <section id="story" className="story-section">
-        <div className="story-intro"><p>Connected thinking</p><h2>{"A number alone rarely helps. Context turns it into a decision.".split(" ").map((word, i) => <span data-reveal-word key={i}>{word}{" "}</span>)}</h2></div>
-        <div className="stack-wrap">{chapters.map((chapter, index) => <article data-stack-card className={`stack-card stack-${index + 1}`} key={chapter.title}><span>0{index + 1}</span><div><h3>{chapter.title}</h3><p>{chapter.body}</p></div></article>)}</div>
-      </section>
-
-      <section className="closing">
-        <p>Built for the people running the floor.</p>
-        <h2>Less reporting.<br />More knowing.</h2>
-        <Link className="button button-dark" href="/login">Enter the dashboard</Link>
-      </section>
-      <footer><Link className="wordmark wordmark-dark" href="/">THE CURD NERD<span>DATA HOUSE</span></Link><p>Private operations intelligence</p><p>© {new Date().getFullYear()}</p></footer>
+      <footer className="employee-footer">
+        <div>
+          <strong>The Curd Nerd</strong>
+          <span>+</span>
+          <strong>The Wedge</strong>
+        </div>
+        <p>Looking for reporting? <Link href="/login">Open the manager sales dashboard</Link>.</p>
+        <p>© {new Date().getFullYear()}</p>
+      </footer>
     </main>
   );
 }
