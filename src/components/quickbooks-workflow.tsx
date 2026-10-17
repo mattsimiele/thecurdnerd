@@ -119,7 +119,7 @@ export function QuickBooksWorkflow() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "The integration request failed.");
       if (typeof result.url === "string") window.location.assign(result.url);
-      else { setNotice(action === "sync_drive" ? `Indexed ${result.indexed} PDFs; matched ${result.matched}.` : action === "sync_quickbooks" ? `Synced ${result.written} posted QuickBooks transactions.` : "Sync completed."); await load(); }
+      else { await load(); setNotice(action === "sync_drive" ? `Indexed ${result.indexed} PDFs; matched ${result.matched}.` : action === "sync_quickbooks" ? `Synced ${result.written} posted QuickBooks transactions.` : "Sync completed."); }
     } catch (cause) { setNotice(cause instanceof Error ? cause.message : "The integration request failed."); }
     setWorking(undefined);
   }
@@ -133,7 +133,7 @@ export function QuickBooksWorkflow() {
         method: "POST", headers: { Authorization: `Bearer ${data.session?.access_token}`, "Content-Type": "application/json" }, body: JSON.stringify({ rows }),
       });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || "Import failed");
-      setNotice(`Imported ${result.written} open rows; matched ${result.matched} receipts.`); await load();
+      await load(); setNotice(`Imported ${result.written} open rows; matched ${result.matched} receipts.`);
     } catch (cause) { setNotice(cause instanceof Error ? cause.message : "The QuickBooks export could not be read."); }
     setWorking(undefined); event.target.value = "";
   }
