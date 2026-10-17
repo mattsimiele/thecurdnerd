@@ -39,3 +39,12 @@ export type AccountingReport = {
   groups: Array<{ reporting_group: string; amount_cents: number; transaction_count: number }>;
   daily: Array<{ transaction_date: string; amount_cents: number; transaction_count: number }>;
 };
+
+export type QuickBooksReceiptStatus = "needs_receipt" | "matched" | "approved" | "uploaded" | "posted" | "needs_review" | "held";
+export type QuickBooksWorkflowTransaction = {
+  id: string; account_name: string; transaction_date: string; description: string; amount_cents: number;
+  location: "The Curd Nerd" | "The Wedge" | "TCN/Wedge" | null; vendor: string | null; category: string | null;
+  receipt_id?: string | null; receipt_path: string | null; receipt_name: string | null; receipt_confidence: number | null;
+  status: QuickBooksReceiptStatus; source?: "quickbooks_api" | "quickbooks_export"; last_error?: string | null; updated_at: string | null;
+};
+export type QuickBooksWorkflowReport = { fetched_at: string | null; source: "quickbooks" | "local_worker" | "not_connected"; connections?: { google_drive: boolean; quickbooks: boolean }; transactions: QuickBooksWorkflowTransaction[] };

@@ -39,6 +39,24 @@ A signed-in user with no assignment sees no report data. Selecting a business wi
 - Transaction count and average ticket
 - QuickBooks movement and COGS summary when accounting data exists for the selected period
 
+The hosted Drive/QuickBooks integration contract is documented in
+[`docs/hosted-integrations.md`](docs/hosted-integrations.md). GitHub Pages is
+the dashboard; Supabase Edge Functions are the secure integration layer.
+
+## QuickBooks receipt workflow
+
+The dashboard includes the complete receipt review interface. Google Drive and
+QuickBooks OAuth, recursive PDF indexing, matching, attachment uploads, and
+status updates run in the `receipt-workflow` Supabase Edge Function. Secrets
+never enter the GitHub Pages bundle.
+
+QuickBooks' public Accounting API does not expose Banking "For review" as a
+queryable entity. The dashboard therefore imports that queue from the standard
+QuickBooks CSV export. Posted accounting entities sync through the API. Receipt
+matching uses exact cents and date proximity first; vendor text only increases
+confidence. Approval uploads the Drive PDF to QuickBooks, after which the user
+can post the banking row manually.
+
 ## GitHub Pages deployment
 
 The workflow at [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) builds a static export for `/thecurdnerd/salesreports/` and stages it beneath `salesreports/` in the Pages artifact. For the requested final URL, the GitHub Pages project repository should be named `thecurdnerd` and inherit the `siimiele.net` custom domain from the account site.
@@ -47,8 +65,20 @@ Create these GitHub repository **variables**, not secrets:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_RECEIPTS_API_URL` (for example, `https://PROJECT.supabase.co/functions/v1/receipt-workflow`)
 
 Both are public by design. Do not create repository variables for the database URL, database password, Square token, QuickBooks secret, or any Supabase secret/service-role key.
+
+Deploy the database migration and Edge Function before publishing the UI:
+
+```sh
+supabase db push
+supabase functions deploy receipt-workflow --no-verify-jwt
+```
+
+Then set the Google and QuickBooks OAuth credentials as Supabase secrets. The
+callback URLs are the function URL with `?action=google_callback` and
+`?action=quickbooks_callback` respectively.
 
 Enable **Settings → Pages → Source: GitHub Actions**, then run the workflow. The exact domain/repository topology must be confirmed before the first deployment so the workflow does not replace an existing Pages site.
 

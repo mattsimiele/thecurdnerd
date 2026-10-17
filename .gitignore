@@ -19,3 +19,19 @@ Old Code
 docs
 scripts
 supabase
+
+# Hosted receipt workflow is deployed with the site. Legacy/local ingestion
+# material remains ignored, but these reviewed files must be versioned.
+!docs/
+docs/*
+!docs/hosted-integrations.md
+!supabase/
+supabase/*
+!supabase/config.toml
+!supabase/functions/
+supabase/functions/*
+!supabase/functions/receipt-workflow/
+!supabase/functions/receipt-workflow/index.ts
+!supabase/migrations/
+supabase/migrations/*
+!supabase/migrations/20261017210000_receipt_workflow.sql
