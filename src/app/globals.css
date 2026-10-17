@@ -211,3 +211,13 @@ footer p:last-child { text-align:right; }
 @media(max-width:900px){.login-page{display:block;padding:0}.login-page>.wordmark{top:28px;left:25px}.login-visual{min-height:42vh;padding:30px}.login-panel{width:auto;padding:60px 25px}.dashboard-shell{display:block}.dash-sidebar{position:relative;height:auto;display:flex;flex-direction:row;align-items:center}.dash-sidebar nav{display:none}.sidebar-foot{margin-left:auto;margin-top:0;display:none}.dash-content{padding:30px 18px}.dash-header{align-items:flex-start;flex-direction:column}.business-switcher{width:100%;overflow:auto}.business-switcher button{flex:1}.report-controls{justify-content:flex-start;flex-wrap:wrap}.metric-grid{grid-template-columns:repeat(2,1fr)}.dashboard-grid{grid-template-columns:1fr}.mix-panel{grid-row:auto}.brief{align-items:flex-start;flex-direction:column}.qb-workflow-head{flex-direction:column}.qb-connectors{grid-template-columns:1fr}.qb-stats{overflow:auto}.qb-stats div{min-width:120px}}
 .qb-actions { display:flex; gap:8px; align-items:center; }
 .button-light { display:inline-flex; align-items:center; min-height:39px; padding:0 14px; border:1px solid var(--line); color:var(--ink); background:transparent; text-decoration:none; font-size:11px; }
+
+.legal-page { min-height:100vh; padding:42px clamp(22px,6vw,90px) 100px; background:#f4efe5; }
+.legal-wordmark { display:inline-block; font-size:13px; font-weight:700; letter-spacing:.02em; }
+.legal-page article { width:min(760px,100%); margin:110px auto 0; }
+.legal-kicker { margin:0 0 20px; color:#6b6156; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+.legal-page h1 { margin:0; font-family:"Playfair Display",serif; font-size:clamp(3.6rem,8vw,7.5rem); line-height:.9; letter-spacing:-.055em; }
+.legal-updated { margin:30px 0 60px !important; color:#6b6156; font-size:13px; }
+.legal-page h2 { margin:48px 0 12px; font-size:21px; font-weight:600; letter-spacing:-.025em; }
+.legal-page p { margin:0; font-size:16px; line-height:1.72; }
+.legal-page a:not(.legal-wordmark) { text-decoration:underline; text-underline-offset:3px; }
