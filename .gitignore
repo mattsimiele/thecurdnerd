@@ -35,3 +35,4 @@ supabase/functions/*
 !supabase/migrations/
 supabase/migrations/*
 !supabase/migrations/20261017210000_receipt_workflow.sql
+!supabase/migrations/20261017234500_receipt_workflow_service_role.sql
