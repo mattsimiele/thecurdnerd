@@ -19,6 +19,12 @@ const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { pe
 type Provider = "google_drive" | "quickbooks";
 type Json = Record<string, unknown>;
 
+function errorMessage(cause: unknown) {
+  if (cause instanceof Error) return cause.message;
+  if (cause && typeof cause === "object" && "message" in cause) return String((cause as { message: unknown }).message);
+  return "Unexpected integration error";
+}
+
 function cors(origin: string | null) {
   const allowed = origin && ALLOWED_ORIGINS.some((value) => origin === value || origin.startsWith(`${value}/`));
   return {
@@ -379,7 +385,7 @@ Deno.serve(async (req) => {
     if (action === "upload_approved") return json(await uploadApproved(), 200, origin);
     return json({ error: "Unknown action" }, 404, origin);
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : "Unexpected integration error";
+    const message = errorMessage(cause);
     return json({ error: message }, message.includes("Authentication") ? 401 : message.includes("access") ? 403 : 400, origin);
   }
 });
