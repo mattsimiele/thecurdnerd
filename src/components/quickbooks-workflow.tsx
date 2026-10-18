@@ -139,6 +139,8 @@ export function QuickBooksWorkflow() {
   }
 
   const rows = report?.transactions ?? [];
+  const activeRows = rows.filter((row) => row.status !== "posted");
+  const postedRows = rows.filter((row) => row.status === "posted");
   const counts = useMemo(() => ({
     open: rows.filter((row) => row.status !== "posted").length,
     matched: rows.filter((row) => Boolean(row.receipt_name)).length,
@@ -148,9 +150,16 @@ export function QuickBooksWorkflow() {
 
   return <section className="qb-workflow" id="quickbooks">
     <div className="qb-workflow-head"><div><p>QuickBooks workflow</p><h2>Receipts to review</h2><span className="qb-subtitle">Drive supplies the PDFs. Open banking rows come from a QuickBooks export; posted accounting records sync through the API.</span></div><a className="button button-light" href={receiptFolderUrl} target="_blank" rel="noreferrer">Open Drive folder</a></div>
-    <div className="qb-connectors"><article><div><span>Google Drive</span><strong>{report?.connections?.google_drive ? "Connected" : "Not connected"}</strong></div><button onClick={() => callIntegration("google_authorize", { return_to: window.location.href })}>{report?.connections?.google_drive ? "Reconnect" : "Connect"}</button><button disabled={!report?.connections?.google_drive || !!working} onClick={() => callIntegration("sync_drive")}>Index PDFs</button></article><article><div><span>QuickBooks</span><strong>{report?.connections?.quickbooks ? "Connected" : "Not connected"}</strong></div><button onClick={() => callIntegration("quickbooks_authorize", { return_to: window.location.href })}>{report?.connections?.quickbooks ? "Reconnect" : "Connect"}</button><button disabled={!report?.connections?.quickbooks || !!working} onClick={() => callIntegration("sync_quickbooks")}>Sync posted</button></article><label className="qb-import"><span>Banking “For review”</span><strong>Import QuickBooks CSV</strong><input type="file" accept=".csv,text/csv" onChange={importExport} disabled={!!working} /></label></div>
     <div className="qb-stats"><div><strong>{counts.open}</strong><span>Open</span></div><div><strong>{counts.matched}</strong><span>Receipt matched</span></div><div><strong>{counts.approval}</strong><span>Ready for approval</span></div><div><strong>{counts.posted}</strong><span>Posted synced</span></div></div>
     {notice && <p className="qb-notice">{notice}</p>}
-    {!loading && !rows.length ? <div className="qb-empty"><strong>No receipt queue yet</strong><span>Connect Google Drive and QuickBooks, index the receipt folder, then import the QuickBooks Banking export. Matches will appear here for approval and upload.</span></div> : <div className="qb-table-wrap"><table className="qb-table"><thead><tr><th>Vendor</th><th>Date / account</th><th>Amount</th><th>Receipt</th><th>Review</th></tr></thead><tbody>{rows.map((transaction) => <ApprovalRow transaction={transaction} onComplete={load} key={transaction.id} />)}</tbody></table></div>}
+    {!loading && !activeRows.length ? <div className="qb-empty"><strong>No open transactions need attention</strong><span>Import the QuickBooks Banking export to add “For review” transactions and match their receipts.</span></div> : <div className="qb-table-wrap"><table className="qb-table"><thead><tr><th>Vendor</th><th>Date / account</th><th>Amount</th><th>Receipt</th><th>Review</th></tr></thead><tbody>{activeRows.map((transaction) => <ApprovalRow transaction={transaction} onComplete={load} key={transaction.id} />)}</tbody></table></div>}
+    <details className="qb-collapsible" open={!report?.connections?.google_drive || !report?.connections?.quickbooks}>
+      <summary><span>Connections and imports</span><small>Google Drive, QuickBooks, and Banking CSV</small></summary>
+      <div className="qb-connectors"><article><div><span>Google Drive</span><strong>{report?.connections?.google_drive ? "Connected" : "Not connected"}</strong></div><button onClick={() => callIntegration("google_authorize", { return_to: window.location.href })}>{report?.connections?.google_drive ? "Reconnect" : "Connect"}</button><button disabled={!report?.connections?.google_drive || !!working} onClick={() => callIntegration("sync_drive")}>Index PDFs</button></article><article><div><span>QuickBooks</span><strong>{report?.connections?.quickbooks ? "Connected" : "Not connected"}</strong></div><button onClick={() => callIntegration("quickbooks_authorize", { return_to: window.location.href })}>{report?.connections?.quickbooks ? "Reconnect" : "Connect"}</button><button disabled={!report?.connections?.quickbooks || !!working} onClick={() => callIntegration("sync_quickbooks")}>Sync posted</button></article><label className="qb-import"><span>Banking “For review”</span><strong>Import QuickBooks CSV</strong><input type="file" accept=".csv,text/csv" onChange={importExport} disabled={!!working} /></label></div>
+    </details>
+    <details className="qb-collapsible">
+      <summary><span>Posted transaction history</span><small>{postedRows.length} synced transactions</small></summary>
+      {!postedRows.length ? <div className="qb-empty"><span>No posted transactions have been synced yet.</span></div> : <div className="qb-table-wrap"><table className="qb-table"><thead><tr><th>Vendor</th><th>Date / account</th><th>Amount</th><th>Receipt</th><th>Status</th></tr></thead><tbody>{postedRows.map((transaction) => <ApprovalRow transaction={transaction} onComplete={load} key={transaction.id} />)}</tbody></table></div>}
+    </details>
   </section>;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import type { AccountingReport, ManagerBusiness, SalesReport } from "@/lib/report-types";
-import { QuickBooksWorkflow } from "@/components/quickbooks-workflow";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -130,7 +130,7 @@ export function DashboardClient() {
   return <main className="dashboard-shell">
     <aside className="dash-sidebar">
       <div className="wordmark">THE CURD NERD<span>DATA HOUSE</span></div>
-      <nav><a className="active" href="#overview">Overview</a><a href="#sales">Sales history</a><a href="#quickbooks">QuickBooks</a><a href="#items">Items</a><a href="#finance">Finance</a></nav>
+      <nav><a className="active" href="#overview">Overview</a><a href="#sales">Sales history</a><a href="#items">Items</a><a href="#finance">Finance</a><Link href="/dashboard/receipts/">Receipts</Link></nav>
       <div className="sidebar-foot"><span className="status-dot" /> Authenticated data<button type="button" onClick={signOut}>Sign out</button></div>
     </aside>
     <section className="dash-content" id="overview">
@@ -150,7 +150,6 @@ export function DashboardClient() {
         <article className="attention-panel"><div className="panel-head"><div><p>Data quality</p><h3>Known items to review</h3></div></div><ul><li><i className={uncategorized ? "critical" : "good"} /><div><strong>{integer.format(Number(uncategorized?.item_quantity ?? 0))} uncategorized items</strong><span>Within the selected date range</span></div><b>{uncategorized ? "Review" : "Clear"}</b></li><li><i /><div><strong>{accounting?.summary.transactionCount ?? 0} accounting rows</strong><span>Available for this date range and access scope</span></div><b>Imported</b></li><li><i className="good" /><div><strong>Access filtered</strong><span>Reports include only assigned businesses</span></div><b>Secure</b></li></ul></article>
         <article className="prime-panel" id="finance"><p>QuickBooks COGS</p><strong>{cents(accounting?.summary.cogsCents)}</strong><div><i style={{ width: sales.summary.netSalesCents ? `${Math.min(100, Number(accounting?.summary.cogsCents ?? 0) / sales.summary.netSalesCents * 100)}%` : "0%" }} /></div><span>Accounting data through {accounting?.summary.latestTransactionDate ?? "not available"}</span></article>
       </section>
-      <QuickBooksWorkflow />
       <section className="report-table-panel" id="items"><div className="panel-head"><div><p>Item performance</p><h3>Top items by net sales</h3></div></div><div className="report-table-wrap"><table><thead><tr><th>Item</th><th>Category</th><th>Quantity</th><th>Net sales</th></tr></thead><tbody>{sales.items.map((item) => <tr key={`${item.category}-${item.item_name}`}><td>{item.item_name}</td><td>{item.category}</td><td>{integer.format(Number(item.item_quantity))}</td><td>{cents(item.net_sales_cents)}</td></tr>)}</tbody></table></div></section>
     </section>
   </main>;
