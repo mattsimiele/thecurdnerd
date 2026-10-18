@@ -171,29 +171,42 @@ function parseReceiptName(name: string) {
   return { date, amount, vendor };
 }
 
+function words(value: unknown) {
+  return String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/)
+    .filter((part) => part.length > 3 && !["invoice", "receipt", "paid", "faire"].includes(part));
+}
+
+function textOverlap(left: unknown, right: unknown) {
+  const rightText = ` ${words(right).join(" ")} `;
+  return words(left).some((part) => rightText.includes(` ${part} `));
+}
+
 async function matchReceipts() {
-  const [{ data: receipts }, { data: transactions }] = await Promise.all([
+  const [{ data: receipts }, { data: transactions }, { data: alreadyUsed }] = await Promise.all([
     admin.from("receipt_documents").select("id,parsed_date,parsed_amount_cents,parsed_vendor").eq("active", true),
     admin.from("quickbooks_workflow_transactions").select("id,transaction_date,amount_cents,description,vendor,status").in("status", ["needs_receipt", "needs_review", "matched"]),
+    admin.from("quickbooks_workflow_transactions").select("receipt_id").not("receipt_id", "is", null).in("status", ["approved", "uploaded", "posted"]),
   ]);
+  const unavailable = new Set((alreadyUsed ?? []).map((row) => String(row.receipt_id)));
   let matched = 0;
   for (const transaction of transactions ?? []) {
-    const candidates = (receipts ?? []).map((receipt) => {
+    const candidates = (receipts ?? []).filter((receipt) => !unavailable.has(String(receipt.id))).map((receipt) => {
       const days = receipt.parsed_date ? Math.abs((Date.parse(receipt.parsed_date) - Date.parse(transaction.transaction_date)) / 86_400_000) : 999;
       const amountMatch = receipt.parsed_amount_cents !== null && Math.abs(Number(receipt.parsed_amount_cents)) === Math.abs(Number(transaction.amount_cents));
       const vendorText = `${transaction.vendor ?? ""} ${transaction.description ?? ""}`.toLowerCase();
       const vendor = String(receipt.parsed_vendor ?? "").toLowerCase();
-      const vendorMatch = vendor.length > 3 && vendor.split(/\s+/).some((part) => part.length > 3 && vendorText.includes(part));
-      const confidence = (amountMatch ? 0.65 : 0) + (days <= 1 ? 0.25 : days <= 5 ? 0.15 : 0) + (vendorMatch ? 0.1 : 0);
+      const vendorMatch = vendor.length > 3 && textOverlap(vendor, vendorText);
+      const confidence = (amountMatch ? 0.6 : 0) + (days === 0 ? 0.25 : days <= 5 ? 0.15 : 0) + (vendorMatch ? 0.15 : 0);
       return { receipt, confidence, amountMatch, days };
-    }).filter((item) => item.amountMatch && item.days <= 5).sort((a,b) => b.confidence - a.confidence);
+    }).filter((item) => (item.amountMatch && item.days <= 5) || (item.days === 0 && item.confidence >= 0.4))
+      .sort((a,b) => b.confidence - a.confidence);
     if (!candidates.length) continue;
     const top = candidates[0]; const ambiguous = candidates.length > 1 && candidates[1].confidence === top.confidence;
     const { error } = await admin.from("quickbooks_workflow_transactions").update({
       receipt_id: top.receipt.id, receipt_confidence: top.confidence,
       status: ambiguous || top.confidence < 0.8 ? "needs_review" : "matched", updated_at: new Date().toISOString(),
     }).eq("id", transaction.id).in("status", ["needs_receipt", "needs_review", "matched"]);
-    if (!error) matched++;
+    if (!error) { matched++; unavailable.add(String(top.receipt.id)); }
   }
   return matched;
 }
@@ -259,16 +272,25 @@ async function syncQuickBooks() {
       // mark the original workflow row posted instead of guessing by text.
       const transactionDate = String(row.TxnDate ?? "");
       const amountCents = Math.round(amount * 100);
-      const { data: pending } = await admin.from("quickbooks_workflow_transactions")
-        .select("id,status").eq("source", "quickbooks_export").eq("transaction_date", transactionDate)
+      const lowerDate = new Date(`${transactionDate}T12:00:00Z`); lowerDate.setUTCDate(lowerDate.getUTCDate() - 7);
+      const upperDate = new Date(`${transactionDate}T12:00:00Z`); upperDate.setUTCDate(upperDate.getUTCDate() + 7);
+      const { data: possible } = await admin.from("quickbooks_workflow_transactions")
+        .select("id,status,vendor,description,transaction_date").eq("source", "quickbooks_export")
+        .gte("transaction_date", lowerDate.toISOString().slice(0, 10)).lte("transaction_date", upperDate.toISOString().slice(0, 10))
         .in("amount_cents", [amountCents, -amountCents]).in("status", ["uploaded", "approved", "matched", "needs_review"]);
-      if (pending?.length === 1) {
-        const receiptWasApproved = ["uploaded", "approved"].includes(String(pending[0].status));
+      const pending = (possible ?? []).map((candidate) => ({
+        ...candidate,
+        days: Math.abs((Date.parse(String(candidate.transaction_date)) - Date.parse(transactionDate)) / 86_400_000),
+        vendorMatch: textOverlap(`${candidate.vendor ?? ""} ${candidate.description ?? ""}`, vendorRef?.name),
+      })).sort((left, right) => Number(right.vendorMatch) - Number(left.vendorMatch) || left.days - right.days);
+      const chosen = pending.length === 1 || (pending[0]?.vendorMatch && !pending[1]?.vendorMatch) ? pending[0] : null;
+      if (chosen) {
+        const receiptWasApproved = ["uploaded", "approved"].includes(String(chosen.status));
         await admin.from("quickbooks_workflow_transactions").update({
           status: receiptWasApproved ? "approved" : "posted", posted_at: new Date().toISOString(), quickbooks_entity_type: entity,
           quickbooks_entity_id: id, quickbooks_sync_token: String(row.SyncToken ?? ""),
           last_error: null, updated_at: new Date().toISOString(),
-        }).eq("id", pending[0].id);
+        }).eq("id", chosen.id);
       }
       written++;
     }
@@ -329,6 +351,7 @@ async function uploadApproved() {
       if (!response.ok) throw new Error(`QuickBooks upload failed (${response.status})`);
       const result = await response.json() as { AttachableResponse?: Array<{ Attachable?: { Id?: string } }> };
       const attachableId = result.AttachableResponse?.[0]?.Attachable?.Id ?? null;
+      if (!attachableId) throw new Error("QuickBooks accepted the request but did not return an attached file ID");
       await admin.from("quickbooks_workflow_transactions").update({ status: "posted", uploaded_at: new Date().toISOString(), quickbooks_attachable_id: attachableId, last_error: null, updated_at: new Date().toISOString() }).eq("id", transaction.id);
       uploaded++;
     } catch (cause) {
