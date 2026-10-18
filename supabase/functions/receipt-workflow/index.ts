@@ -260,11 +260,12 @@ async function syncQuickBooks() {
       const transactionDate = String(row.TxnDate ?? "");
       const amountCents = Math.round(amount * 100);
       const { data: pending } = await admin.from("quickbooks_workflow_transactions")
-        .select("id").eq("source", "quickbooks_export").eq("transaction_date", transactionDate)
+        .select("id,status").eq("source", "quickbooks_export").eq("transaction_date", transactionDate)
         .in("amount_cents", [amountCents, -amountCents]).in("status", ["uploaded", "approved", "matched", "needs_review"]);
       if (pending?.length === 1) {
+        const receiptWasApproved = ["uploaded", "approved"].includes(String(pending[0].status));
         await admin.from("quickbooks_workflow_transactions").update({
-          status: "posted", posted_at: new Date().toISOString(), quickbooks_entity_type: entity,
+          status: receiptWasApproved ? "approved" : "posted", posted_at: new Date().toISOString(), quickbooks_entity_type: entity,
           quickbooks_entity_id: id, quickbooks_sync_token: String(row.SyncToken ?? ""),
           last_error: null, updated_at: new Date().toISOString(),
         }).eq("id", pending[0].id);
@@ -272,7 +273,8 @@ async function syncQuickBooks() {
       written++;
     }
   }
-  return { written, note: "QuickBooks API rows are posted accounting entities; Banking For Review rows require an export import." };
+  const attachments = await uploadApproved();
+  return { written, attached: attachments.uploaded, waiting: attachments.waiting, note: "Posted transactions were synced and approved receipts were attached to their QuickBooks transactions." };
 }
 
 async function importPending(rows: Json[]) {
@@ -303,14 +305,21 @@ async function uploadApproved() {
     .select("id,receipt_id,quickbooks_entity_id,quickbooks_entity_type").eq("status", "approved");
   if (error) throw error;
   let uploaded = 0;
+  let waiting = 0;
   for (const transaction of transactions ?? []) {
+    // Banking "For review" rows have no API entity ID. Keep the approval
+    // queued until the user posts the transaction and a sync discovers it.
+    if (!transaction.quickbooks_entity_id || !transaction.quickbooks_entity_type) {
+      waiting++;
+      continue;
+    }
     const { data: receipt } = await admin.from("receipt_documents").select("drive_file_id,file_name,mime_type").eq("id", transaction.receipt_id).single();
     if (!receipt) continue;
     try {
       const download = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(receipt.drive_file_id)}?alt=media`, { headers: { Authorization: `Bearer ${driveToken}` } });
       if (!download.ok) throw new Error(`Drive download failed (${download.status})`);
       const metadata: Json = { FileName: receipt.file_name, ContentType: receipt.mime_type || "application/pdf", LatentType: "Other" };
-      if (transaction.quickbooks_entity_id && transaction.quickbooks_entity_type) metadata.AttachableRef = [{ EntityRef: { type: transaction.quickbooks_entity_type, value: transaction.quickbooks_entity_id } }];
+      metadata.AttachableRef = [{ EntityRef: { type: transaction.quickbooks_entity_type, value: transaction.quickbooks_entity_id } }];
       const body = new FormData();
       body.append("file_metadata_01", new Blob([JSON.stringify({ Attachable: metadata })], { type: "application/json" }), "metadata.json");
       body.append("file_content_01", await download.blob(), receipt.file_name);
@@ -320,13 +329,13 @@ async function uploadApproved() {
       if (!response.ok) throw new Error(`QuickBooks upload failed (${response.status})`);
       const result = await response.json() as { AttachableResponse?: Array<{ Attachable?: { Id?: string } }> };
       const attachableId = result.AttachableResponse?.[0]?.Attachable?.Id ?? null;
-      await admin.from("quickbooks_workflow_transactions").update({ status: "uploaded", uploaded_at: new Date().toISOString(), quickbooks_attachable_id: attachableId, last_error: null, updated_at: new Date().toISOString() }).eq("id", transaction.id);
+      await admin.from("quickbooks_workflow_transactions").update({ status: "posted", uploaded_at: new Date().toISOString(), quickbooks_attachable_id: attachableId, last_error: null, updated_at: new Date().toISOString() }).eq("id", transaction.id);
       uploaded++;
     } catch (cause) {
       await admin.from("quickbooks_workflow_transactions").update({ last_error: cause instanceof Error ? cause.message : "Upload failed", updated_at: new Date().toISOString() }).eq("id", transaction.id);
     }
   }
-  return { uploaded };
+  return { uploaded, waiting };
 }
 
 async function connectionStatus() {

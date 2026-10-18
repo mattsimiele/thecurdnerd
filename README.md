@@ -54,8 +54,9 @@ QuickBooks' public Accounting API does not expose Banking "For review" as a
 queryable entity. The dashboard therefore imports that queue from the standard
 QuickBooks CSV export. Posted accounting entities sync through the API. Receipt
 matching uses exact cents and date proximity first; vendor text only increases
-confidence. Approval uploads the Drive PDF to QuickBooks, after which the user
-can post the banking row manually.
+confidence. Approval queues the PDF. After the user posts the banking row, the
+next QuickBooks sync discovers its entity ID and attaches the queued PDF to the
+posted transaction.
 
 ## GitHub Pages deployment
 

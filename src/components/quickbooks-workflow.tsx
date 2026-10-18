@@ -8,8 +8,8 @@ const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD
 const receiptFolderUrl = process.env.NEXT_PUBLIC_RECEIPTS_DRIVE_FOLDER_URL || "https://drive.google.com/drive/folders/1yebBnCTdPhYPLrc4aylHWORLs9-vsn9n";
 const apiUrl = process.env.NEXT_PUBLIC_RECEIPTS_API_URL || `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/receipt-workflow`;
 const labels: Record<QuickBooksReceiptStatus, string> = {
-  needs_receipt: "Find receipt", matched: "Matched", approved: "Approved",
-  uploaded: "Uploaded — post in QuickBooks", posted: "Posted", needs_review: "Needs review", held: "Held",
+  needs_receipt: "Find receipt", matched: "Matched", approved: "Approved — post in QuickBooks",
+  uploaded: "Uploaded earlier — sync to attach", posted: "Posted", needs_review: "Needs review", held: "Held",
 };
 
 function parseCsv(text: string) {
@@ -89,7 +89,7 @@ function ApprovalRow({ transaction, onComplete }: { transaction: QuickBooksWorkf
     <td>{formatDate(transaction.transaction_date)}<span className="qb-muted">{transaction.account_name}</span></td>
     <td className="qb-amount">{money.format(Math.abs(transaction.amount_cents) / 100)}</td>
     <td>{transaction.receipt_name ? <a href={transaction.receipt_path || receiptFolderUrl} target="_blank" rel="noreferrer"><strong>{transaction.receipt_name}</strong><span className="qb-muted">{transaction.receipt_confidence ? `${Math.round(transaction.receipt_confidence * 100)}% match` : "View PDF"}</span></a> : <span className="qb-muted">No PDF matched</span>}</td>
-    <td>{ready ? <div className="qb-review-fields"><input aria-label="Category" value={category} onChange={(event) => setCategory(event.target.value)} /><select aria-label="Business location" value={location} onChange={(event) => setLocation(event.target.value as "The Curd Nerd" | "The Wedge" | "TCN/Wedge")}><option>The Curd Nerd</option><option>The Wedge</option><option>TCN/Wedge</option></select><button onClick={approve} disabled={saving || !transaction.receipt_name}>{saving ? "Uploading…" : "Approve & upload"}</button>{error && <span className="qb-row-error">{error}</span>}</div> : <><span className={`qb-status qb-status-${transaction.status.replaceAll("_", "-")}`}>{labels[transaction.status]}</span>{transaction.status === "uploaded" && <span className="qb-muted">Payee: {transaction.vendor}<br />Category: {transaction.category}<br />Location: {transaction.location}</span>}</>}</td>
+    <td>{ready ? <div className="qb-review-fields"><input aria-label="Category" value={category} onChange={(event) => setCategory(event.target.value)} /><select aria-label="Business location" value={location} onChange={(event) => setLocation(event.target.value as "The Curd Nerd" | "The Wedge" | "TCN/Wedge")}><option>The Curd Nerd</option><option>The Wedge</option><option>TCN/Wedge</option></select><button onClick={approve} disabled={saving || !transaction.receipt_name}>{saving ? "Approving…" : "Approve receipt"}</button>{error && <span className="qb-row-error">{error}</span>}</div> : <><span className={`qb-status qb-status-${transaction.status.replaceAll("_", "-")}`}>{transaction.status === "posted" && transaction.receipt_name ? "Posted + attached" : labels[transaction.status]}</span>{["approved", "uploaded"].includes(transaction.status) && <span className="qb-muted">Payee: {transaction.vendor}<br />Category: {transaction.category}<br />Location: {transaction.location}</span>}</>}</td>
   </tr>;
 }
 
@@ -119,7 +119,7 @@ export function QuickBooksWorkflow() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "The integration request failed.");
       if (typeof result.url === "string") window.location.assign(result.url);
-      else { await load(); setNotice(action === "sync_drive" ? `Indexed ${result.indexed} PDFs; matched ${result.matched}.` : action === "sync_quickbooks" ? `Synced ${result.written} posted QuickBooks transactions.` : "Sync completed."); }
+      else { await load(); setNotice(action === "sync_drive" ? `Indexed ${result.indexed} PDFs; matched ${result.matched}.` : action === "sync_quickbooks" ? `Synced ${result.written} posted QuickBooks transactions and attached ${result.attached ?? 0} approved receipts.` : "Sync completed."); }
     } catch (cause) { setNotice(cause instanceof Error ? cause.message : "The integration request failed."); }
     setWorking(undefined);
   }
@@ -145,13 +145,13 @@ export function QuickBooksWorkflow() {
     open: rows.filter((row) => row.status !== "posted").length,
     matched: activeRows.filter((row) => Boolean(row.receipt_name)).length,
     approval: activeRows.filter((row) => ["matched", "needs_review"].includes(row.status)).length,
-    uploaded: activeRows.filter((row) => row.status === "uploaded").length,
+    waiting: activeRows.filter((row) => ["approved", "uploaded"].includes(row.status)).length,
   };
 
   return <section className="qb-workflow" id="quickbooks">
     <div className="qb-workflow-head"><div><p>QuickBooks workflow</p><h2>Receipts to review</h2><span className="qb-subtitle">Drive supplies the PDFs. Open banking rows come from a QuickBooks export; posted accounting records sync through the API.</span></div><a className="button button-light" href={receiptFolderUrl} target="_blank" rel="noreferrer">Open Drive folder</a></div>
-    <div className="qb-stats"><div><strong>{counts.open}</strong><span>Open</span></div><div><strong>{counts.matched}</strong><span>Receipt matched</span></div><div><strong>{counts.approval}</strong><span>Ready for approval</span></div><div><strong>{counts.uploaded}</strong><span>Uploaded, needs posting</span></div></div>
-    {counts.uploaded > 0 && <p className="qb-guidance"><strong>{counts.uploaded} receipt{counts.uploaded === 1 ? " is" : "s are"} in QuickBooks but still need{counts.uploaded === 1 ? "s" : ""} posting.</strong> Open the receipt in QuickBooks and enter the payee, category, and location shown in its row. QuickBooks cannot apply those accounting fields from a standalone attachment.</p>}
+    <div className="qb-stats"><div><strong>{counts.open}</strong><span>Open</span></div><div><strong>{counts.matched}</strong><span>Receipt matched</span></div><div><strong>{counts.approval}</strong><span>Ready for approval</span></div><div><strong>{counts.waiting}</strong><span>Approved, awaiting post</span></div></div>
+    {counts.waiting > 0 && <p className="qb-guidance"><strong>{counts.waiting} approved receipt{counts.waiting === 1 ? " is" : "s are"} waiting for a QuickBooks transaction.</strong> Post the matching bank-feed transaction in QuickBooks, then expand Connections and imports and choose <b>Sync posted</b>. The sync will find its QuickBooks ID and attach the PDF to that transaction.</p>}
     {notice && <p className="qb-notice">{notice}</p>}
     {!loading && !activeRows.length ? <div className="qb-empty"><strong>No open transactions need attention</strong><span>Import the QuickBooks Banking export to add “For review” transactions and match their receipts.</span></div> : <div className="qb-table-wrap"><table className="qb-table"><thead><tr><th>Vendor</th><th>Date / account</th><th>Amount</th><th>Receipt</th><th>Review</th></tr></thead><tbody>{activeRows.map((transaction) => <ApprovalRow transaction={transaction} onComplete={load} key={transaction.id} />)}</tbody></table></div>}
     <details className="qb-collapsible" open={!report?.connections?.google_drive || !report?.connections?.quickbooks}>
