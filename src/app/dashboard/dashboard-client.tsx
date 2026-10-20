@@ -9,6 +9,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const integer = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const businessDate = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "America/New_York" });
+
+function todayInBusinessTimezone() {
+  const parts = businessDate.formatToParts(new Date());
+  return ["year", "month", "day"].map((part) => parts.find((item) => item.type === part)!.value).join("-");
+}
 
 function shiftDate(value: string, days: number) {
   const date = new Date(`${value}T12:00:00Z`);
@@ -29,6 +35,7 @@ export function DashboardClient() {
   const [appliedRange, setAppliedRange] = useState<{ start: string; end: string }>();
   const [sales, setSales] = useState<SalesReport>();
   const [accounting, setAccounting] = useState<AccountingReport>();
+  const [accountingError, setAccountingError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
@@ -54,8 +61,8 @@ export function DashboardClient() {
         setLoading(false);
         return;
       }
-      const latest = access.map((item) => item.latest_sales_date).sort().at(-1)!;
-      const initialRange = { start: shiftDate(latest, -6), end: latest };
+      const today = todayInBusinessTimezone();
+      const initialRange = { start: shiftDate(today, -29), end: today };
       setBusinesses(access);
       setScope(access.length > 1 ? "combined" : access[0].slug);
       setStartDate(initialRange.start);
@@ -86,6 +93,7 @@ export function DashboardClient() {
       return;
     }
     setSales(salesResponse.data as SalesReport);
+    setAccountingError(Boolean(accountingResponse.error));
     setAccounting(accountingResponse.error ? undefined : accountingResponse.data as AccountingReport);
     setLoading(false);
   }, [appliedRange, scope]);
@@ -147,9 +155,10 @@ export function DashboardClient() {
       <section className="dashboard-grid" id="sales">
         <article className="sales-chart"><div className="panel-head"><div><p>Selected period</p><h3>Daily net sales</h3></div><div className="legend"><span><i className="today" />{dailySeries.length} days with sales</span></div></div><div className="chart-wrap"><svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Daily net sales"><defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#d8ff52" stopOpacity=".38"/><stop offset="1" stopColor="#d8ff52" stopOpacity="0"/></linearGradient></defs><polygon points={`0,100 ${chartPoints} 100,100`} fill="url(#chartFill)"/><polyline points={chartPoints} fill="none" stroke="#d8ff52" strokeWidth="2" vectorEffect="non-scaling-stroke"/></svg><div className="chart-labels"><span>{dailySeries.at(0)?.date}</span><span>Daily history</span><span>{dailySeries.at(-1)?.date}</span></div></div></article>
         <article className="mix-panel"><div className="panel-head"><div><p>Revenue mix</p><h3>Top categories</h3></div></div><div className="donut" style={{ background: `conic-gradient(${categoryStops || "#d8ff52 0 100%"})` }}><div><strong>{cents(sales.summary.netSalesCents)}</strong><span>net sales</span></div></div><div className="mix-legend">{sales.categories.slice(0, 5).map((item, index) => <div key={item.category}><span><i style={{ background: colors[index] }} />{item.category}</span><strong>{categoryTotal ? (Number(item.net_sales_cents) / categoryTotal * 100).toFixed(1) : "0.0"}%</strong></div>)}</div></article>
-        <article className="attention-panel"><div className="panel-head"><div><p>Data quality</p><h3>Known items to review</h3></div></div><ul><li><i className={uncategorized ? "critical" : "good"} /><div><strong>{integer.format(Number(uncategorized?.item_quantity ?? 0))} uncategorized items</strong><span>Within the selected date range</span></div><b>{uncategorized ? "Review" : "Clear"}</b></li><li><i /><div><strong>{accounting?.summary.transactionCount ?? 0} accounting rows</strong><span>Available for this date range and access scope</span></div><b>Imported</b></li><li><i className="good" /><div><strong>Access filtered</strong><span>Reports include only assigned businesses</span></div><b>Secure</b></li></ul></article>
-        <article className="prime-panel" id="finance"><p>QuickBooks COGS</p><strong>{cents(accounting?.summary.cogsCents)}</strong><div><i style={{ width: sales.summary.netSalesCents ? `${Math.min(100, Number(accounting?.summary.cogsCents ?? 0) / sales.summary.netSalesCents * 100)}%` : "0%" }} /></div><span>Accounting data through {accounting?.summary.latestTransactionDate ?? "not available"}</span></article>
+        <article className="attention-panel"><div className="panel-head"><div><p>Data quality</p><h3>Known items to review</h3></div></div><ul><li><i className={uncategorized ? "critical" : "good"} /><div><strong>{integer.format(Number(uncategorized?.item_quantity ?? 0))} uncategorized items</strong><span>Within the selected date range</span></div><b>{uncategorized ? "Review" : "Clear"}</b></li><li><i className={accountingError ? "critical" : "good"} /><div><strong>{accountingError ? "Accounting report unavailable" : `${accounting?.summary.expenseLineCount ?? 0} expense lines`}</strong><span>{accountingError ? "Refresh the report or check the QuickBooks sync" : "Available for this date range and access scope"}</span></div><b>{accountingError ? "Review" : "Imported"}</b></li><li><i className="good" /><div><strong>Access filtered</strong><span>Reports include only assigned businesses</span></div><b>Secure</b></li></ul></article>
+        <article className="prime-panel" id="finance"><p>QuickBooks expenses</p><strong>{accountingError ? "Unavailable" : cents(accounting?.summary.expenseCents)}</strong><div><i style={{ width: sales.summary.netSalesCents && accounting ? `${Math.min(100, Math.max(0, Number(accounting.summary.expenseCents) / sales.summary.netSalesCents * 100))}%` : "0%" }} /></div><span>{accountingError ? "The expense report could not be loaded." : `COGS ${cents(accounting?.summary.cogsCents)} · ${accounting?.summary.expenseLineCount ?? 0} expense lines · through ${accounting?.summary.latestTransactionDate ?? "not available"}`}</span></article>
       </section>
+      {accounting && <section className="report-table-panel" aria-label="QuickBooks expense groups"><div className="panel-head"><div><p>QuickBooks</p><h3>Expenses by account group</h3></div></div><div className="report-table-wrap"><table><thead><tr><th>Account group</th><th>Expense lines</th><th>Amount</th></tr></thead><tbody>{accounting.groups.map((group) => <tr key={group.reporting_group}><td>{group.reporting_group}</td><td>{integer.format(Number(group.transaction_count))}</td><td>{cents(group.expense_amount_cents)}</td></tr>)}</tbody></table>{accounting.groups.length === 0 && <p>No QuickBooks expenses in this date range.</p>}</div></section>}
       <section className="report-table-panel" id="items"><div className="panel-head"><div><p>Item performance</p><h3>Top items by net sales</h3></div></div><div className="report-table-wrap"><table><thead><tr><th>Item</th><th>Category</th><th>Quantity</th><th>Net sales</th></tr></thead><tbody>{sales.items.map((item) => <tr key={`${item.category}-${item.item_name}`}><td>{item.item_name}</td><td>{item.category}</td><td>{integer.format(Number(item.item_quantity))}</td><td>{cents(item.net_sales_cents)}</td></tr>)}</tbody></table></div></section>
     </section>
   </main>;

@@ -37,7 +37,7 @@ A signed-in user with no assignment sees no report data. Selecting a business wi
 - Category and item performance
 - Hourly sales aggregation
 - Transaction count and average ticket
-- QuickBooks movement and COGS summary when accounting data exists for the selected period
+- QuickBooks expenses and COGS from classified expense lines when accounting data exists for the selected period
 
 The hosted Drive/QuickBooks integration contract is documented in
 [`docs/hosted-integrations.md`](docs/hosted-integrations.md). GitHub Pages is
@@ -85,7 +85,7 @@ Enable **Settings → Pages → Source: GitHub Actions**, then run the workflow.
 
 ## Square synchronization
 
-The server-side job remains separate from GitHub Pages. Run [`scripts/sync_square_to_supabase.py`](scripts/sync_square_to_supabase.py) on the Mac server with:
+The server-side job remains separate from GitHub Pages. Run [`scripts/sync_square_to_supabase.py`](scripts/sync_square_to_supabase.py) on the Linux server with:
 
 - `SUPABASE_DB_URL`
 - `SQUARE_ACCESS_TOKEN`
@@ -94,6 +94,50 @@ The server-side job remains separate from GitHub Pages. Run [`scripts/sync_squar
 - `SQUARE_LOOKBACK_DAYS=7`
 
 The job upserts raw orders and normalized line items. It never deletes historical CSV records.
+
+## QuickBooks expense synchronization
+
+The static site does not connect to QuickBooks. Apply the local migration
+[`supabase/migrations/20261020120000_quickbooks_expense_sync.sql`](supabase/migrations/20261020120000_quickbooks_expense_sync.sql)
+to Supabase first, then run the server-only
+[`scripts/sync_quickbooks_to_supabase.py`](scripts/sync_quickbooks_to_supabase.py).
+The Linux server needs Python 3, `requests`, `psycopg2-binary`, `SUPABASE_DB_URL`,
+`QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, and a QuickBooks OAuth
+refresh token. The client ID and secret alone cannot access company data.
+The existing OAuth helper has no deployed callback, so complete the Intuit
+authorization flow and supply the initial `QUICKBOOKS_REFRESH_TOKEN` through
+the server environment. Store the rotated token outside this repository.
+
+For one QuickBooks realm covering both businesses, use:
+
+```sh
+python3 scripts/sync_quickbooks_to_supabase.py \
+  --realm-id YOUR_REALM_ID \
+  --start-date 2026-01-01 \
+  --token-file /secure/server/path/quickbooks-token.json
+```
+
+The importer uses QuickBooks class and department names to assign expense
+lines to exact business names. `Split` and `TCN/Wedge` remain shared; other
+unmapped lines remain unassigned. Review these allocations in the database
+before trusting per-business totals. If each business has its own realm, run
+the job separately for each, adding `--business-slug the-curd-nerd` or
+`--business-slug the-wedge` and using a separate token file for each realm.
+Use the same earliest `--start-date` on every scheduled run (for example,
+nightly) so edits, voids, and deleted entities within the range are reconciled.
+The sync reads `Purchase`, `Bill`, `VendorCredit`, `Account`, `Item`, `Class`,
+and `Department`; it does not write to QuickBooks. Bill payments are not
+counted again as expenses. Journal entries, payroll, and transactions before
+the configured start date are outside this expense measure.
+
+The migration retains legacy imported rows before the live QuickBooks start
+date. It switches the report to API rows from that date to avoid double
+counting historical CSV data. Use `ops.sync_runs` to check the last completed
+QuickBooks import. The reporting RPC keeps raw QuickBooks records private and
+returns only data the signed-in manager may view.
+
+`scripts/` and `supabase/` are intentionally Git-ignored in this repository;
+copy their local changes to the server and apply the migration explicitly.
 
 ## Database migrations
 

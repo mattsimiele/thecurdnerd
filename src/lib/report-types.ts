@@ -35,9 +35,9 @@ export type SalesReport = {
 export type AccountingReport = {
   startDate: string;
   endDate: string;
-  summary: { netMovementCents: number; cogsCents: number; transactionCount: number; latestTransactionDate: string | null };
-  groups: Array<{ reporting_group: string; amount_cents: number; transaction_count: number }>;
-  daily: Array<{ transaction_date: string; amount_cents: number; transaction_count: number }>;
+  summary: { netMovementCents: number; expenseCents: number; cogsCents: number; transactionCount: number; expenseLineCount: number; latestTransactionDate: string | null; latestImportAt: string | null };
+  groups: Array<{ reporting_group: string; expense_amount_cents: number; transaction_count: number }>;
+  daily: Array<{ transaction_date: string; expense_amount_cents: number; transaction_count: number }>;
 };
 
 export type QuickBooksReceiptStatus = "needs_receipt" | "matched" | "approved" | "uploaded" | "posted" | "needs_review" | "held";
