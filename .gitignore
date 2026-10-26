@@ -45,3 +45,4 @@ supabase/migrations/*
 !supabase/migrations/20261026230000_recipes.sql
 !docs/recipes.md
 !supabase/migrations/20261027010000_weekly_menu_pars.sql
+!supabase/migrations/20261027020000_sales_unit_recovery.sql

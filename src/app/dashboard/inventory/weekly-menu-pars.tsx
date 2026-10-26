@@ -42,7 +42,7 @@ export function WeeklyMenuPars({businessId,canEdit,onEditingChange}:{businessId:
  {draft?.unitIssue&&<p className="ops-note">{draft.unitIssue}. You can save a planning par now; combined historical averages need verified units. Current-week progress uses this week’s units independently.</p>}
  {saveError&&<p className="ops-error" role="alert">{saveError}</p>}<button className="ops-primary" disabled={saving} type="submit">{saving?'Saving…':'Save weekly par'}</button>
  </form>}
- <p className="ops-note">Older sales without unit labels remain visible below as unverified quantities. They are not discarded or silently combined with known units. Current-week progress is blocked only by unresolved current quantities, missing imports, or incompatible measures.</p>
+ <p className="ops-note">Units use explicit Square or historical labels first, then a consistent unit for the same item and variation. If neither exists, fractional quantities use lb and whole quantities use each. Conflicting item units remain unverified. Current-week progress also requires imported sales.</p>
  <div className="ops-filters"><label>Find menu item or dessert<input value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label></div>
  <div className="ops-table-wrap"><table aria-label="Weekly prep par progress"><thead><tr><th>Menu item</th><th className="num">Last 4 weeks sold</th><th className="num">Average / week</th><th className="num">Weekly par</th><th className="num">Sold this week</th><th className="num">Remaining to par</th><th>Week progress</th><th>Action</th></tr></thead><tbody>{visible.slice(page*15,(page+1)*15).map(row=>{
  const progress=weeklyParProgress(row,report);
