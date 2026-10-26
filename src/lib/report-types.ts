@@ -48,3 +48,25 @@ export type QuickBooksWorkflowTransaction = {
   status: QuickBooksReceiptStatus; source?: "quickbooks_api" | "quickbooks_export"; last_error?: string | null; updated_at: string | null;
 };
 export type QuickBooksWorkflowReport = { fetched_at: string | null; source: "quickbooks" | "local_worker" | "not_connected"; connections?: { google_drive: boolean; quickbooks: boolean }; transactions: QuickBooksWorkflowTransaction[] };
+
+export type OperatingBusiness = {
+  slug: string; name: string; sales_cents: number; previous_sales_cents: number;
+  tickets: number; previous_tickets: number; observed_days: number; previous_observed_days: number;
+  gift_card_cents: number; unverified_gift_card_cents: number; uncategorized_lines: number; unknown_unit_lines: number;
+  sales_through: string | null; sales_imported_at: string | null;
+  accounting_through: string | null; accounting_imported_at: string | null; direct_expense_cents: number;
+};
+export type ExpenseAccount = { account: string; account_type: string; allocation: string; current_cents: number; previous_cents: number; line_count: number };
+export type OperatingReport = {
+  startDate: string; endDate: string; previousStartDate: string; previousEndDate: string; sharedVisible: boolean; accountingDataThrough: string | null; accountingImportedAt: string | null;
+  businesses: OperatingBusiness[];
+  daily: { slug: string; business_date: string; source_lines: number; sales_cents: number }[];
+  categories: { slug: string; category: string; sales_cents: number }[];
+  items: { slug: string; item_name: string; variation_name: string | null; catalog_variation_id: string | null; quantity_unit: string; quantity: number; sales_cents: number; ranking: number }[];
+  accounts: ExpenseAccount[];
+  vendors: { account: string; vendor: string; allocation: string; current_cents: number; previous_cents: number }[];
+  recordedReturns: { slug: string; return_lines: number; return_cents: number }[];
+};
+export type ExpenseLinePage = {
+  total: number; rows: { id: string; transaction_date: string; account: string; vendor: string; amount_cents: number; allocation: string; entity_type: string; source_id: string | null }[];
+};

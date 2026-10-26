@@ -31,13 +31,19 @@ A signed-in user with no assignment sees no report data. Selecting a business wi
 
 ## Reports available now
 
-- Arbitrary date ranges up to three years
-- Daily and weekly sales
-- Same-date-range year-over-year comparison
-- Category and item performance
-- Hourly sales aggregation
-- Transaction count and average ticket
-- QuickBooks expenses and COGS from classified expense lines when accounting data exists for the selected period
+- Owner brief with both accessible businesses side by side
+- Completed-week presets, calendar-month selection, and custom ranges up to three years
+- Equal-length prior-period comparisons for item sales, transactions, and expenses
+- Confirmed gift-card exclusions and separately identified historical gift-card rows
+- Full category mix, calendar-day sales history, and item variants with source units
+- Expense accounts, vendor totals, and paginated source transaction detail
+- Explicit direct, shared, and unassigned cost views with business access controls
+- Dataset-through dates and import timestamps independent of the selected range
+
+Sales remain labelled before return reconciliation; shared expenses are not
+silently allocated and expense totals are not presented as profit. See
+[`docs/operating-reports.md`](docs/operating-reports.md) for definitions,
+validation, and the required additive database migration.
 
 The hosted Drive/QuickBooks integration contract is documented in
 [`docs/hosted-integrations.md`](docs/hosted-integrations.md). GitHub Pages is
