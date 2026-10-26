@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { recipePriorities, priorityFor } from '@/lib/recipe-priorities';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { proposedPar, recommendation, type InventoryItem } from '@/lib/inventory';
 import { ingredientDemand, menuKey, recipeProblem, type MenuSale, type Recipe, type RecipePlan } from '@/lib/recipes';
@@ -47,6 +48,14 @@ export function RecipeWorkspace({businessId,canEdit,items,onItemUpdated,onEditin
   const keys=new Set(plan.menu.map(menuKey));
   return [...plan.menu,...plan.recipes.filter(r=>!keys.has(menuKey(r))).map(r=>({...r,quantity:0,sales_cents:0}))];
  },[plan]);
+ const priorities=recipePriorities.map(priority=>{
+  const sales=menu.filter(m=>priorityFor(m)===priority).sort((a,b)=>priority.variations.indexOf(a.variation_name)-priority.variations.indexOf(b.variation_name)||(a.sales_unit==='each'?-1:b.sales_unit==='each'?1:a.sales_unit.localeCompare(b.sales_unit)));
+  const done=sales.filter(s=>!recipeProblem(plan?.recipes.find(r=>menuKey(r)===menuKey(s)),items)).length;
+  const absent=priority.variations.filter(v=>!sales.some(s=>s.variation_name===v));
+  return {priority,sales,done,absent,complete:sales.length>0&&done===sales.length&&!absent.length};
+ });
+ const nextPriority=priorities.flatMap(p=>p.sales).find(s=>recipeProblem(plan?.recipes.find(r=>menuKey(r)===menuKey(s)),items));
+ const selectedGuide=selected?priorityFor(selected):undefined;
  const visible=menu.filter(m=>{
   const r=plan?.recipes.find(r=>menuKey(r)===menuKey(m));
   return `${m.item_name} ${m.variation_name} ${m.sales_unit}`.toLowerCase().includes(search.toLowerCase())&&
@@ -101,10 +110,25 @@ export function RecipeWorkspace({businessId,canEdit,items,onItemUpdated,onEditin
   {!selected&&saveError&&<p className="ops-error" role="alert">{saveError}</p>}
   {!items.length&&<p className="ops-notice">Add Wedge’s purchased ingredients using “Add inventory item” above, then map them to dishes here. You can save ingredients before setting suppliers, counts, or pars.</p>}
 
+  <section className="ops-section recipe-priorities" aria-label="Recipe priority checklist">
+   <div className="ops-section-head"><h2>Your recipe setup checklist</h2><span>{priorities.filter(p=>p.complete).length} of {priorities.length} priorities complete</span></div>
+   <p className="ops-note">Work through the agreed best-seller order, starting with Mac &amp; Cheese. Progress comes from saved, active recipes with valid ingredients and survives reloads. Each source unit needs its own verified mapping. Prompts describe what to supply; no ingredients or quantities are assumed.</p>
+   {canEdit&&nextPriority&&<button className="ops-primary" disabled={saving||!!selected} onClick={()=>open(nextPriority)}>Continue with {priorityFor(nextPriority)?.label} · {nextPriority.sales_unit}</button>}
+   <ol className="recipe-priority-list">{priorities.map(({priority,sales,done,absent,complete},index)=><li key={priority.label}>
+    <details open={index===0}><summary><strong>{index+1}. {priority.label}</strong><span>{complete?'Complete':sales.length?`${done}/${sales.length} mappings saved`:'No matching menu sales yet'}</span></summary>
+     <p><strong>Ingredient quantities:</strong> {priority.ingredients}</p><p><strong>Batch yield:</strong> {priority.yield}</p>
+     {absent.length>0&&<p className="ops-note">Not available in recent sales or saved recipes: {absent.map(v=>v||'Standard variation').join(', ')}. This step stays incomplete until the menu variation is available and mapped.</p>}
+     {sales.map(sale=>{const recipe=plan?.recipes.find(r=>menuKey(r)===menuKey(sale));const problem=recipeProblem(recipe,items);return <div className="recipe-priority-step" key={menuKey(sale)}><div>{sale.variation_name||'Standard variation'} · {sale.sales_unit}<span className="ops-cell-note">{problem??'Saved and ready'}{sale.sales_unit==='Unknown'?' · Verify what one sold quantity means':''}</span></div>{canEdit&&<button disabled={saving||!!selected} onClick={()=>open(sale)}>{recipe?'Edit mapping':'Enter recipe'} · {sale.sales_unit}</button>}</div>;})}
+    </details>
+   </li>)}</ol>
+   <p className="ops-note">Chef’s Tasting Dinner stays outside this recurring setup list. Its reviewed sales came from one event day; plan its menu and quantities separately.</p>
+  </section>
+
   {selected&&<section className="inv-editor ops-section" id="recipe-editor" aria-label="Recipe editor">
    <div className="ops-section-head"><h2>{editing?'Edit recipe':'Map recipe'} · {selected.item_name}</h2><button disabled={saving} onClick={()=>setSelected(undefined)}>Close recipe</button></div>
    <p>{selected.variation_name||'Standard variation'} · source unit: <strong>{selected.sales_unit}</strong> · {format(selected.quantity/4)} sold per week</p>
    {selected.sales_unit==='Unknown'&&<p className="ops-error">Square did not supply a usable unit for these sales. Verify what one source quantity represents before mapping it. This mapping stays separate from “each” sales of the same dish.</p>}
+   {selectedGuide&&<aside className="ops-notice" aria-label="Recipe entry checklist"><strong>What to enter for {selectedGuide.label}</strong><p><strong>Ingredient quantities:</strong> {selectedGuide.ingredients}</p><p><strong>Batch yield:</strong> {selectedGuide.yield}</p><p>Use recipe notes for portion size, trim/cooking loss, and optional add-ons excluded from the base recipe.</p></aside>}
    <form onSubmit={save}>
     <div className="inv-fields"><label>Sellable units produced per batch<input autoFocus required type="number" step="any" min="0.000001" max="1000000" value={yieldValue} onChange={e=>{setYieldValue(e.target.value);setVerified(false);}} placeholder="e.g. 12 portions"/></label><p className="ops-note">For one serving, enter 1 and its ingredient quantities. For a batch, enter its actual saleable yield. Yield must use the same selling quantity as this exact menu variation.</p></div>
     <h3>Purchased ingredients per batch</h3>

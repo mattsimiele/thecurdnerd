@@ -2,6 +2,10 @@
 
 Inventory → The Wedge → Recipes & ingredient demand connects exact menu item, variation, and source-unit combinations to purchased ingredients. No recipes, yields, counts, or ingredient quantities are guessed or seeded.
 
+## Priority checklist
+
+The setup checklist follows the agreed order: Mac & Cheese, Bavette Steak Frites, Cheese Flight, Martini 101, Wedge Salad, Kansas City Steak Frites, then both Girl Dinner variations. It is a fixed setup order rather than a changing revenue ranking. Continue opens the first available unfinished mapping, with `each` before uncertain units. Completion is derived from saved active recipes and valid inventory links, including every available source-unit mapping and expected variation; missing variations stay incomplete. Ingredient and yield prompts are guidance only, never seeded quantities.
+
 ## Workflow
 
 1. Add Wedge ingredient stock items with correct purchasing units using Add inventory item. Set supplier, pack size, lead time, and buffer for order planning; counts and pars can be added later.

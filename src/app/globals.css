@@ -346,3 +346,11 @@ footer p:last-child { text-align:right; }
 .ops-shell summary { cursor:pointer; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
 @media(max-width:600px){.recipe-line{grid-template-columns:1fr}.recipe-line button{justify-self:start}.recipe-line{padding-bottom:20px;border-bottom:1px solid var(--ops-line)}}
 .ops-shell button.ops-selected { background:var(--ops-accent); }
+.recipe-priority-list { list-style:none; padding:0; margin:20px 0; }
+.recipe-priority-list>li { border-top:1px solid var(--ops-line); padding:16px 0; }
+.ops-shell .recipe-priority-list details { max-width:none; margin:0; }
+.ops-shell .recipe-priority-list summary { display:flex; justify-content:space-between; gap:14px; font-size:15px; text-decoration:none; }
+.recipe-priority-list summary span { font-size:12px; color:var(--ops-muted); }
+.recipe-priority-list p { max-width:85ch; font-size:13px; }
+.recipe-priority-step { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; max-width:800px; }
+@media(max-width:600px){.ops-shell .recipe-priority-list summary{flex-direction:column;gap:4px}.recipe-priority-step{align-items:flex-start;flex-direction:column}}
