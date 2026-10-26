@@ -6,11 +6,11 @@
 
 1. Choose a business and open the recent-sales shortlist. It contains the top 100 item / variation / source-unit combinations by net sales over the last four complete Monday–Sunday weeks. Gift cards are excluded. All four weeks are in the denominator, including zero-sale days; stockouts or incomplete imports can understate demand.
 2. Add purchased stock items, verify units, enter supplier, order-pack size, and lead time. Curd Nerd can use a matching-unit sales rate as a starting par: weekly average × (7 review days + lead days + buffer days) / 7. The default two-day buffer is editable. Confirm the result against waste, shelf life, seasonality, and events. Pars are saved explicitly and do not drift with sales.
-3. Wedge menu quantities are references for prioritizing ingredients, not ingredient demand. Enter ingredient pars manually. Recipe/yield mapping is a future step.
+3. Wedge menu quantities are references for prioritizing ingredients, not ingredient demand. You can enter ingredient pars manually or use Recipes & ingredient demand to map exact menu variations, enter batch yields, and apply reviewed ingredient pars. See [recipe mapping](recipes.md).
 4. Count usable stock now, excluding spoiled or reserved stock. Enter confirmed, unreceived inbound quantities expected within the par coverage window. Zero is valid; missing is never assumed to be zero. Reconfirm both values after receiving deliveries.
 5. Review orders grouped by supplier. Suggested quantity is max(0, par − usable stock − confirmed inbound), rounded up to whole supplier packs. Supplier, par, lead time, pack size, and a count no older than 24 hours are required. Count timestamps are server-generated. Export includes blocked rows for follow-up; it does not send or record purchase orders.
 
-Inventory is a snapshot. Sales do not automatically deplete stock; ingredient recipes, waste, transfers, automatic receiving, purchase-order tracking, price estimates, supplier minimums, and shelf-life constraints are not yet modeled. Recount before ordering. Each business has separate inventory even for the same item. Unit changes require a new record to avoid reinterpreting old counts.
+Inventory is a snapshot. Sales and recipe demand estimates do not automatically deplete stock. Waste tracking, transfers, automatic receiving, purchase-order tracking, price estimates, supplier minimums, and shelf-life constraints are not yet modeled. Recount before ordering. Each business has separate inventory even for the same item. Unit changes require a new record to avoid reinterpreting old counts.
 
 ## Backend
 

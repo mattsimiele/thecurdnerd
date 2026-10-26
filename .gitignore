@@ -42,3 +42,5 @@ supabase/migrations/*
 !docs/operating-reports.md
 !supabase/migrations/20261026220000_inventory.sql
 !docs/inventory.md
+!supabase/migrations/20261026230000_recipes.sql
+!docs/recipes.md

@@ -340,3 +340,9 @@ footer p:last-child { text-align:right; }
 .inv-status { color:#883820; }
 .inv-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px){.inv-editor{padding:16px}.inv-fields{grid-template-columns:1fr}.inv-actions button{width:100%}}
+.recipe-line { display:grid; grid-template-columns:2fr 1fr auto; align-items:end; gap:14px; margin:16px 0; }
+.recipe-notes { margin-top:22px; }
+.ops-shell details { margin-top:10px; max-width:380px; }
+.ops-shell summary { cursor:pointer; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
+@media(max-width:600px){.recipe-line{grid-template-columns:1fr}.recipe-line button{justify-self:start}.recipe-line{padding-bottom:20px;border-bottom:1px solid var(--ops-line)}}
+.ops-shell button.ops-selected { background:var(--ops-accent); }
