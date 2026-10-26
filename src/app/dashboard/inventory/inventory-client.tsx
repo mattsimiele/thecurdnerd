@@ -1,0 +1,82 @@
+'use client';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, type FormEvent } from 'react';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { recommendation, proposedPar, orderCsv, type InventoryItem, type InventoryReport, type Candidate } from '@/lib/inventory';
+
+const qty=(n:number|null)=>n===null?'—':new Intl.NumberFormat('en-US',{maximumFractionDigits:6}).format(n);
+const units=['lb','oz','kg','g','each','L','mL'];
+type Draft={name:string;unit:string;supplier:string;par:string;pack_size:string;lead_days:string;buffer_days:string;on_hand:string;inbound:string;notes:string};
+const blank=():Draft=>({name:'',unit:'lb',supplier:'',par:'',pack_size:'',lead_days:'',buffer_days:'2',on_hand:'',inbound:'0',notes:''});
+export function InventoryClient(){
+ const router=useRouter();
+ const [report,setReport]=useState<InventoryReport>();
+ const [businessId,setBusinessId]=useState('');
+ const [error,setError]=useState('');const [loading,setLoading]=useState(true);const [retry,setRetry]=useState(0);
+ const [view,setView]=useState<'orders'|'shortlist'>('orders');const [search,setSearch]=useState('');
+ const [editing,setEditing]=useState<InventoryItem|null|undefined>();const [candidate,setCandidate]=useState<Candidate>();
+ const [draft,setDraft]=useState<Draft>(blank);const [count,setCount]=useState(false);const [saving,setSaving]=useState(false);const [saveError,setSaveError]=useState('');const [notice,setNotice]=useState('');
+ const [clock,setClock]=useState(Date.now());
+ useEffect(()=>{const t=setInterval(()=>setClock(Date.now()),60000);return()=>clearInterval(t);},[]);
+ useEffect(()=>{let active=true;setLoading(true);setError('');
+ async function load(){try{const client=getSupabaseBrowserClient();const session=await client.auth.getSession();if(!active)return;if(!session.data.session){router.replace('/login');return;}
+ const r=await client.rpc('manager_inventory');if(r.error)throw r.error;if(active){setReport(r.data);setBusinessId(old=>r.data.businesses.some((b:{id:string})=>b.id===old)?old:r.data.businesses[0].id);setClock(Date.now());}}
+ catch{if(active)setError('Inventory could not be loaded. Retry to reconnect.');}finally{if(active)setLoading(false);}}
+ load();return()=>{active=false;};},[retry,router]);
+ const business=report?.businesses.find(b=>b.id===businessId);
+ const canEdit=business?.role==='owner'||business?.role==='manager';
+ const items=report?.items.filter(i=>i.business_id===businessId)??[];
+ const filtered=items.filter(i=>`${i.name} ${i.supplier}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>a.supplier.localeCompare(b.supplier)||a.name.localeCompare(b.name));
+ const suggestions=report?.candidates.filter(c=>c.business_id===businessId&&`${c.item_name} ${c.variation_name}`.toLowerCase().includes(search.toLowerCase()))??[];
+ const ready=items.filter(i=>(recommendation(i,clock).quantity??0)>0).length;
+ const blocked=items.filter(i=>recommendation(i,clock).missing.length).length;
+ function open(item?:InventoryItem,source?:Candidate){setEditing(item??null);setCandidate(source);setSaveError('');setCount(false);setNotice('');
+ setDraft(item?{name:item.name,unit:item.unit,supplier:item.supplier,par:item.par?.toString()??'',pack_size:item.pack_size?.toString()??'',lead_days:item.lead_days?.toString()??'',buffer_days:String(item.buffer_days),on_hand:item.on_hand?.toString()??'',inbound:String(item.inbound),notes:item.notes}: {...blank(),name:source&&business?.slug!=='the-wedge'?[source.item_name,source.variation_name].filter(Boolean).join(' · '):'',unit:source&&business?.slug==='the-curd-nerd'&&units.includes(source.quantity_unit)?source.quantity_unit:'lb'});
+ setTimeout(()=>document.getElementById('inventory-editor')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
+ }
+ function field(key:keyof Draft,value:string){setDraft(d=>({...d,[key]:value}));}
+ async function save(e:FormEvent,active=true){e.preventDefault();if(!business||saving)return;setSaving(true);setSaveError('');
+ try{const r=await getSupabaseBrowserClient().rpc('manager_save_inventory',{p_business_id:businessId,p_item_id:editing?.id??null,p_revision:editing?.revision??null,p_values:{...draft,active},p_count:count&&active});
+ if(r.error)throw r.error;
+ setReport(old=>old?{...old,items:[...old.items.filter(i=>i.id!==r.data.id),...(active?[r.data]:[])]}:old);setEditing(undefined);setNotice(active?'Saved. The weekly order list is updated.':'Item archived. Its count history is retained.');setClock(Date.now());
+ }catch(e){const code=(e as {code?:string}).code;setSaveError(code==='40001'?'Someone updated this item. Close this form and refresh inventory before trying again.':code==='23505'?'An active item already has this name and unit. Edit that item instead.':'Could not save. Check the fields and your connection, then retry.');}finally{setSaving(false);}}
+ function download(){const url=URL.createObjectURL(new Blob([orderCsv(items,business?.name??'',Date.now())],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`${business?.slug}-weekly-order-review.csv`;a.click();URL.revokeObjectURL(url);}
+ return <main className="ops-shell"><a className="ops-skip" href="#inventory-main">Skip to inventory</a><header className="ops-mast"><Link className="ops-wordmark" href="/dashboard">THE CURD NERD <span>& THE WEDGE</span></Link><nav aria-label="Main navigation"><Link href="/dashboard">Owner brief & expenses</Link><Link href="/dashboard/inventory" aria-current="page">Inventory & pars</Link><Link href="/dashboard/receipts">Receipts</Link></nav></header>
+ <div className="ops-content" id="inventory-main"><div className="ops-heading"><span className="ops-eyebrow">WEEKLY BUYING PLAN</span><h1>What needs ordering?</h1><p>Count usable stock, confirm your pars, then review the order list by supplier.</p></div>
+ {loading?<div className="ops-loading" role="status">Loading inventory and recent sales…</div>:error?<div className="ops-error" role="alert">{error} <button onClick={()=>setRetry(x=>x+1)}>Retry</button></div>:report&&<>
+ <div className="ops-filters"><label>Business<select value={businessId} disabled={saving||editing!==undefined} onChange={e=>{setBusinessId(e.target.value);setSearch('');setNotice('');}}>{report.businesses.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label><label>Find item or supplier<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search this business"/></label><button disabled={saving||editing!==undefined} onClick={()=>setRetry(x=>x+1)}>Refresh inventory</button>{canEdit&&<button className="ops-primary" disabled={saving} onClick={()=>open()}>Add inventory item</button>}</div>
+ <div className="ops-presets" aria-label="Inventory views"><button aria-pressed={view==='orders'} className={view==='orders'?'ops-selected':''} onClick={()=>setView('orders')}>Weekly order list</button><button aria-pressed={view==='shortlist'} className={view==='shortlist'?'ops-selected':''} onClick={()=>setView('shortlist')}>Recent-sales shortlist</button></div>
+ {notice&&<p role="status" className="ops-notice">{notice}</p>}
+ {!canEdit&&<p className="ops-notice">Your account has view-only access. An owner or manager can set pars and record counts.</p>}
+ {editing!==undefined&&<section className="inv-editor ops-section" id="inventory-editor" aria-label="Inventory item editor"><div className="ops-section-head"><h2>{editing?'Update inventory':'Set up an inventory item'}</h2><button disabled={saving} onClick={()=>setEditing(undefined)}>Close</button></div>
+ <p className="ops-note">Par is the total stock you want to cover the next 7 days, supplier lead time, and your buffer. All quantities use the same stock unit. Change units by archiving and adding a new item.</p>
+ {candidate&&<div className="ops-notice">Sales reference: {candidate.item_name} {candidate.variation_name} — {qty(candidate.quantity/4)} {candidate.quantity_unit}/week over four complete weeks.
+ {business?.slug==='the-wedge'?<p>This is a dish or selling unit. Add the purchased ingredient and set its par manually; recipe conversion is not connected yet.</p>:<p>This is a starting reference, not a stock count or forecast. Check unit consistency, stockouts, waste, events, and shelf life before accepting a par.</p>}
+ </div>}
+ <form onSubmit={save}><div className="inv-fields">
+ <label>Stock item name<input autoFocus required maxLength={160} value={draft.name} onChange={e=>field('name',e.target.value)}/></label>
+ <label>Stock unit<select disabled={!!editing} value={draft.unit} onChange={e=>field('unit',e.target.value)}>{units.map(u=><option key={u}>{u}</option>)}</select></label>
+ <label>Supplier<input maxLength={160} value={draft.supplier} onChange={e=>field('supplier',e.target.value)} placeholder="Who you order from"/></label>
+ <label>Units per order pack<input type="number" min="0.000001" max="1000000" step="any" value={draft.pack_size} onChange={e=>field('pack_size',e.target.value)} placeholder="e.g. 5 lb per wheel"/></label>
+ <label>Supplier lead time (days)<input type="number" min="0" max="90" step="1" value={draft.lead_days} onChange={e=>field('lead_days',e.target.value)}/></label>
+ <label>Planning buffer (days)<input required type="number" min="0" max="30" step="1" value={draft.buffer_days} onChange={e=>field('buffer_days',e.target.value)}/></label>
+ <label>Confirmed par ({draft.unit})<input type="number" min="0" max="1000000" step="any" value={draft.par} onChange={e=>field('par',e.target.value)}/></label>
+ </div>
+ {candidate&&business?.slug==='the-curd-nerd'&&candidate.quantity_unit===draft.unit&&units.includes(candidate.quantity_unit)&&draft.lead_days!==''&&<p className="ops-note">Sales-based starting point: {qty(proposedPar(candidate.quantity/4,Number(draft.lead_days),Number(draft.buffer_days)))} {draft.unit}. <button type="button" onClick={()=>field('par',String(proposedPar(candidate.quantity/4,Number(draft.lead_days),Number(draft.buffer_days))))}>Use as starting par</button> Uses average weekly sales × (7 + lead days + buffer days) ÷ 7. Review before saving.</p>}
+ <label className="inv-check"><input type="checkbox" checked={count} onChange={e=>setCount(e.target.checked)}/>I counted this stock now and checked outstanding deliveries</label>
+ {count&&<div className="inv-fields"><label>Usable on hand ({draft.unit})<input required type="number" min="0" max="1000000" step="any" value={draft.on_hand} onChange={e=>field('on_hand',e.target.value)}/></label><label>Confirmed inbound ({draft.unit})<input required type="number" min="0" max="1000000" step="any" value={draft.inbound} onChange={e=>field('inbound',e.target.value)}/></label><p className="ops-note">Exclude spoiled stock and stock reserved for events. Only include unreceived deliveries due within this par’s coverage window. Enter 0 if none. Recount after receiving deliveries; inbound is not automatically moved into stock.</p></div>}
+ <label>Ordering notes<input maxLength={2000} value={draft.notes} onChange={e=>field('notes',e.target.value)} placeholder="SKU, shelf life, supplier minimum, events…"/></label>
+ {saveError&&<p role="alert" className="ops-error">{saveError}</p>}
+ <div className="inv-actions"><button disabled={saving} className="ops-primary" type="submit">{saving?'Saving…':'Save inventory item'}</button>{editing&&<button type="button" disabled={saving} onClick={e=>{if(window.confirm('Archive this item from the weekly order list? Its history will be retained.'))save(e,false);}}>Archive item</button>}</div></form></section>}
+ {view==='orders'?<>
+ <div className="ops-cost-summary"><div><span>Items to order</span><strong>{ready}</strong></div><div><span>Need setup or a fresh count</span><strong>{blocked}</strong></div><div><span>Tracked inventory items</span><strong>{items.length}</strong></div></div>
+ <section className="ops-section"><div className="ops-section-head"><h2>{business?.name} · supplier order review</h2><button disabled={!items.length} onClick={download}>Export order review CSV</button></div>
+ <p className="ops-note">Order = par − usable on hand − confirmed inbound, rounded up to whole packs. Counts expire after 24 hours. Saved stock is a snapshot; sales do not automatically reduce it. Check shelf life, delivery dates, and supplier minimums before placing an order.</p>
+ {!items.length?<div className="ops-notice"><h3>Build your first weekly list</h3><p>Start with a few high-volume items from the recent-sales shortlist, or add a purchased ingredient. Enter supplier, pack size, par, and a fresh count to get an order quantity.</p><button onClick={()=>setView('shortlist')}>Browse recent sales</button></div>:!filtered.length?<p className="ops-notice">No inventory matches this search.</p>:<div className="ops-table-wrap"><table><caption className="inv-sr">Inventory and weekly order suggestions for {business?.name}</caption><thead><tr><th>Supplier / item</th><th className="num">Par</th><th className="num">On hand</th><th className="num">Inbound</th><th>Order this week</th><th>Next step</th></tr></thead><tbody>{filtered.map(i=>{const r=recommendation(i,clock);return <tr key={i.id}><td><span className="ops-cell-note">{i.supplier||'Supplier needed'}</span><strong>{i.name}</strong><span className="ops-cell-note">{i.unit} · {i.pack_size===null?'Pack size needed':`${qty(i.pack_size)} per pack`} · {i.lead_days??'—'} day lead time</span>{i.notes&&<span className="ops-cell-note">{i.notes}</span>}</td><td className="num">{qty(i.par)}</td><td className="num">{qty(i.on_hand)}<span className="ops-cell-note">{i.counted_at?new Date(i.counted_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}):'Never counted'}</span></td><td className="num">{qty(i.inbound)}</td><td>{r.quantity===null?<span className="inv-status">Needs attention</span>:r.quantity>0?<><strong>{qty(r.packs)} packs · {qty(r.quantity)} {i.unit}</strong><span className="ops-cell-note">{qty(i.par)} − {qty(i.on_hand)} − {qty(i.inbound)}; rounded to packs</span></>:<span>At par</span>}</td><td><span className="ops-cell-note">{r.missing.join(' · ')||'Review before ordering'}</span>{canEdit&&<button className="ops-link" disabled={saving} onClick={()=>open(i)}>Count / edit</button>}</td></tr>;})}</tbody></table></div>}</section>
+ </>:<section className="ops-section"><div className="ops-section-head"><h2>Start with what sells</h2><span>{report.startDate} – {report.endDate} · four complete weeks</span></div><p className="ops-note">Top 100 item / variant / unit combinations per business, ranked by net sales. Weekly average includes all four weeks; stockouts and incomplete imports can understate demand. Sales available through {business?.salesThrough??'unknown'}. Gift cards are excluded. Unknown units need verification.</p>{business?.slug==='the-wedge'&&<div className="ops-notice">Wedge’s sales are menu items, not purchased ingredients. Use this list to prioritize the ingredients you count. Set ingredient pars manually until recipes and yields are mapped.</div>}
+ {!suggestions.length?<p className="ops-notice">No recent sales match this search.</p>:<div className="ops-table-wrap"><table><thead><tr><th>Item / variation</th><th>Source unit</th><th className="num">4-week sales quantity</th><th className="num">Average per week</th><th>Inventory setup</th></tr></thead><tbody>{suggestions.map((c,index)=><tr key={index}><td>{c.item_name}<span className="ops-cell-note">{c.variation_name||'Standard variation'}</span></td><td>{c.quantity_unit}</td><td className="num">{qty(c.quantity)}</td><td className="num">{qty(c.quantity/4)}</td><td>{canEdit?<button onClick={()=>open(undefined,c)}>{business?.slug==='the-wedge'?'Add related ingredient':'Set up stock item'}</button>:'Owner / manager required'}</td></tr>)}</tbody></table></div>}</section>}
+ <footer className="ops-footer">Planning covers a weekly review cycle. Export is a review sheet; no supplier order is sent. Inventory stays separate for each business.</footer>
+ </>}
+ </div></main>;
+}

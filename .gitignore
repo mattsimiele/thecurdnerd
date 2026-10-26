@@ -40,3 +40,5 @@ supabase/migrations/*
 # Reviewed operating-report contract (no business data or credentials).
 !supabase/migrations/20261026120000_operating_reports.sql
 !docs/operating-reports.md
+!supabase/migrations/20261026220000_inventory.sql
+!docs/inventory.md

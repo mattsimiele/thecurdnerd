@@ -329,3 +329,14 @@ footer p:last-child { text-align:right; }
 .ops-footer a { text-decoration:underline; }
 @media(max-width:800px){.ops-mast{flex-wrap:wrap;padding:18px 20px;gap:14px}.ops-mast nav{order:3;width:100%;margin:0;gap:2px}.ops-mast .ops-signout{margin-left:auto}.ops-content{padding:28px 18px}.ops-action{grid-template-columns:24px 1fr}.ops-action button{grid-column:2;justify-self:start}.ops-cost-summary{grid-template-columns:1fr;gap:14px}.ops-cost-summary>div{grid-template-columns:1fr auto;align-items:baseline}.ops-cost-summary strong{font-size:24px}.ops-range form{width:100%}.ops-range form label{flex:1}.ops-range input{width:100%}.ops-filters label{max-width:100%}.ops-business{padding:20px}.ops-mast nav button,.ops-mast nav a{font-size:12px;padding:10px 8px}}
 @media(prefers-reduced-motion:reduce){.ops-shell *{transition:none!important;scroll-behavior:auto!important}}
+
+/* Inventory shares the operating reports' typography and paper palette. */
+.ops-mast nav a[aria-current] { background:var(--ops-accent); }
+.inv-editor { padding:24px; background:var(--ops-panel); border-top:3px solid var(--ops-ink); scroll-margin-top:20px; }
+.inv-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:16px; margin:20px 0; }
+.inv-check { display:flex!important; align-items:center; gap:10px!important; margin:24px 0 12px; }
+.inv-check input { min-height:20px; width:20px; }
+.inv-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:20px; }
+.inv-status { color:#883820; }
+.inv-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:600px){.inv-editor{padding:16px}.inv-fields{grid-template-columns:1fr}.inv-actions button{width:100%}}

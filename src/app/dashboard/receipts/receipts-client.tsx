@@ -30,7 +30,7 @@ export function ReceiptsClient() {
   return <main className="dashboard-shell">
     <aside className="dash-sidebar">
       <div className="wordmark">THE CURD NERD<span>DATA HOUSE</span></div>
-      <nav><Link href="/dashboard/">Financial dashboard</Link><Link className="active" href="/dashboard/receipts/">Receipts</Link></nav>
+      <nav><Link href="/dashboard/">Financial dashboard</Link><Link href="/dashboard/inventory/">Inventory & pars</Link><Link className="active" href="/dashboard/receipts/">Receipts</Link></nav>
       <div className="sidebar-foot"><span className="status-dot" /> Authenticated data<button type="button" onClick={signOut}>Sign out</button></div>
     </aside>
     <section className="dash-content receipt-page">
