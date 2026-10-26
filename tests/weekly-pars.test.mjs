@@ -19,3 +19,7 @@ test('missing and zero pars differ; sales over par do not create negative remain
  const p=weeklyParProgress({...row,par:0},report);assert.equal(p.remaining,0);assert.equal(p.over,25);assert.equal(p.percent,null);
  assert.equal(weeklyParProgress({...row,par:10},report).percent,250);
 });
+test('older unknown units do not block current-week sales with known units',()=>{
+ const p=weeklyParProgress({...row,confirmed:false,currentUnknown:0},report);
+ assert.equal(p.weeklyAverage,null);assert.equal(p.sold,20);assert.equal(p.remaining,30);assert.equal(p.percent,40);assert.equal(p.currentIssue,null);
+});

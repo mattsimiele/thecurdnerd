@@ -9,10 +9,12 @@ export type WeeklyParReport = {
 };
 export function weeklyParProgress(row:WeeklyParRow,report:WeeklyParReport) {
  const unitIssue=row.incompatibleLines>0?'Incompatible source units':row.unknownLines>0&&!row.confirmed?'Verify unknown selling units':null;
- const weeklyAverage=unitIssue?null:(Number(row.baselineKnown)+Number(row.baselineUnknown))/4;
- const sold=!unitIssue&&report.salesThrough&&report.salesThrough>=report.weekStart?Number(row.currentKnown)+Number(row.currentUnknown):null;
+ const baselineIssue=row.incompatibleLines>0||(Number(row.baselineUnknown)!==0&&!row.confirmed);
+ const currentIssue=row.incompatibleLines>0?'Incompatible source units':Number(row.currentUnknown)!==0&&!row.confirmed?'Verify this week’s selling units':null;
+ const weeklyAverage=baselineIssue?null:(Number(row.baselineKnown)+Number(row.baselineUnknown))/4;
+ const sold=!currentIssue&&report.salesThrough&&report.salesThrough>=report.weekStart?Number(row.currentKnown)+Number(row.currentUnknown):null;
  const remaining=sold!==null&&row.par!==null?Math.max(0,Number(row.par)-sold):null;
  const over=sold!==null&&row.par!==null?Math.max(0,sold-Number(row.par)):null;
  const percent=sold!==null&&row.par!==null&&row.par>0?sold/row.par*100:null;
- return {unitIssue,weeklyAverage,sold,remaining,over,percent};
+ return {unitIssue,currentIssue,weeklyAverage,sold,remaining,over,percent};
 }
