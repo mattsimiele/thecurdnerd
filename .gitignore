@@ -44,3 +44,4 @@ supabase/migrations/*
 !docs/inventory.md
 !supabase/migrations/20261026230000_recipes.sql
 !docs/recipes.md
+!supabase/migrations/20261027010000_weekly_menu_pars.sql

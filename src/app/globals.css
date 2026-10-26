@@ -354,3 +354,4 @@ footer p:last-child { text-align:right; }
 .recipe-priority-list p { max-width:85ch; font-size:13px; }
 .recipe-priority-step { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; max-width:800px; }
 @media(max-width:600px){.ops-shell .recipe-priority-list summary{flex-direction:column;gap:4px}.recipe-priority-step{align-items:flex-start;flex-direction:column}}
+.ops-shell progress { display:block; margin-top:8px; width:140px; max-width:100%; height:9px; accent-color:var(--ops-ink); }
