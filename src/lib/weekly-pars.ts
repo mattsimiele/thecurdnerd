@@ -18,3 +18,13 @@ export function weeklyParProgress(row:WeeklyParRow,report:WeeklyParReport) {
  const percent=sold!==null&&row.par!==null&&row.par>0?sold/row.par*100:null;
  return {unitIssue,currentIssue,weeklyAverage,sold,remaining,over,percent};
 }
+
+export function suggestedWeeklyPar(row:WeeklyParRow,report:WeeklyParReport):{quantity:number|null;reason:string|null} {
+ const average=weeklyParProgress(row,report).weeklyAverage;
+ if(average===null)return {quantity:null,reason:'Verify historical units'};
+ if(!report.salesThrough||report.salesThrough<report.baselineEnd)return {quantity:null,reason:'Historical imports are incomplete'};
+ if(!Number.isFinite(average)||average<=0)return {quantity:null,reason:'No positive historical sales'};
+ const quantity=row.unit==='each'?Math.ceil(average):Math.ceil(average*100)/100;
+ if(quantity>1000000)return {quantity:null,reason:'Quantity needs manual review'};
+ return {quantity,reason:null};
+}

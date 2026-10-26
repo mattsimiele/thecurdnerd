@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 const js=ts.transpileModule(fs.readFileSync('src/lib/weekly-pars.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const {weeklyParProgress}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const {weeklyParProgress,suggestedWeeklyPar}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 const report={weekStart:'2026-10-26',salesThrough:'2026-10-28'};
 const row={baselineKnown:160,baselineUnknown:40,currentKnown:20,currentUnknown:5,unknownLines:3,incompatibleLines:0,confirmed:true,par:50};
 test('compares imported week-to-date sales with weekly par; baseline uses four completed weeks',()=>{
@@ -22,4 +22,19 @@ test('missing and zero pars differ; sales over par do not create negative remain
 test('older unknown units do not block current-week sales with known units',()=>{
  const p=weeklyParProgress({...row,confirmed:false,currentUnknown:0},report);
  assert.equal(p.weeklyAverage,null);assert.equal(p.sold,20);assert.equal(p.remaining,30);assert.equal(p.percent,40);assert.equal(p.currentIssue,null);
+});
+
+test('corrected Dessert and menu totals produce rounded weekly suggestions without saving',()=>{
+ const dates={...report,baselineEnd:'2026-10-25'};
+ const dessert={...row,unit:'each',baselineKnown:247,baselineUnknown:0,par:null};
+ assert.equal(suggestedWeeklyPar(dessert,dates).quantity,62);
+ assert.equal(suggestedWeeklyPar({...dessert,baselineKnown:171},dates).quantity,43);
+ assert.equal(dessert.par,null);
+ assert.equal(suggestedWeeklyPar({...dessert,unit:'lb',baselineKnown:9.01},dates).quantity,2.26);
+ assert.equal(suggestedWeeklyPar(dessert,{...dates,salesThrough:'2026-10-25'}).quantity,62);
+});
+test('suggestions withhold unresolved units, stale imports and empty history',()=>{
+ const dates={...report,baselineEnd:'2026-10-25'};
+ for(const changed of [{confirmed:false},{incompatibleLines:1},{baselineKnown:0,baselineUnknown:0}])assert.equal(suggestedWeeklyPar({...row,...changed},dates).quantity,null);
+ assert.equal(suggestedWeeklyPar(row,{...dates,salesThrough:'2026-10-24'}).quantity,null);
 });
