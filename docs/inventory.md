@@ -32,3 +32,5 @@ Unknown source quantities remain visible separately from known quantities; combi
 
 ### Starting weekly prep pars
 Wedge shows suggested pars from corrected sales over the previous four completed Monday–Sunday weeks, rounded up to whole each or 0.01 measured units. Dessert remains one combined category. Opening an unset par prefills the suggestion for review; existing targets (including zero) are preserved. Suggestions only become active after Save weekly par. Unresolved historical units, stale imports, or nonpositive history withhold suggestions. These are historical starting points without an added buffer; review event demand and upcoming bookings before saving.
+
+Curd Nerd also has a Recent sales & weekly pars view. Each item / variation / unit combination has its own suggested and saved weekly target: pounds retain two-decimal precision, each rounds to whole units, and unresolved units receive no automatic suggestion. Curd Nerd desserts remain individual items. The recent-sales shortlist remains available for stock-item setup; weekly sales targets are separate from inventory stock pars.

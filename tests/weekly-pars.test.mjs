@@ -38,3 +38,7 @@ test('suggestions withhold unresolved units, stale imports and empty history',()
  for(const changed of [{confirmed:false},{incompatibleLines:1},{baselineKnown:0,baselineUnknown:0}])assert.equal(suggestedWeeklyPar({...row,...changed},dates).quantity,null);
  assert.equal(suggestedWeeklyPar(row,{...dates,salesThrough:'2026-10-24'}).quantity,null);
 });
+
+test('unresolved Curd Nerd units never become each suggestions even if confirmed',()=>{
+ assert.equal(suggestedWeeklyPar({...row,unit:'Unknown',confirmed:true},{...report,baselineEnd:'2026-10-25'}).quantity,null);
+});

@@ -20,6 +20,7 @@ export function weeklyParProgress(row:WeeklyParRow,report:WeeklyParReport) {
 }
 
 export function suggestedWeeklyPar(row:WeeklyParRow,report:WeeklyParReport):{quantity:number|null;reason:string|null} {
+ if(row.unit==='Unknown')return {quantity:null,reason:'Resolve the selling unit first'};
  const average=weeklyParProgress(row,report).weeklyAverage;
  if(average===null)return {quantity:null,reason:'Verify historical units'};
  if(!report.salesThrough||report.salesThrough<report.baselineEnd)return {quantity:null,reason:'Historical imports are incomplete'};

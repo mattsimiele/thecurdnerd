@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { suggestedWeeklyPar, weeklyParProgress, type WeeklyParReport, type WeeklyParRow } from '@/lib/weekly-pars';
 const number=(n:number|null)=>n===null?'—':new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(n);
-export function WeeklyMenuPars({businessId,canEdit,onEditingChange}:{businessId:string;canEdit:boolean;onEditingChange:(busy:boolean)=>void}) {
+export function WeeklyMenuPars({businessId,canEdit,onEditingChange,isWedge=true}:{isWedge?:boolean;businessId:string;canEdit:boolean;onEditingChange:(busy:boolean)=>void}) {
  const [report,setReport]=useState<WeeklyParReport>();
  const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [retry,setRetry]=useState(0);
  const [search,setSearch]=useState('');const [page,setPage]=useState(0);
@@ -29,10 +29,10 @@ export function WeeklyMenuPars({businessId,canEdit,onEditingChange}:{businessId:
  const draft=editing?weeklyParProgress({...editing,confirmed},report):null;
  const suggestion=editing?suggestedWeeklyPar({...editing,confirmed},report):null;
  return <section className="ops-section">
- <div className="ops-section-head"><h2>This week against prep pars</h2><button disabled={saving||!!editing} onClick={()=>setRetry(n=>n+1)}>Refresh weekly sales</button></div>
+ <div className="ops-section-head"><h2>This week against weekly pars</h2><button disabled={saving||!!editing} onClick={()=>setRetry(n=>n+1)}>Refresh weekly sales</button></div>
  <p><strong>Monday {report.weekStart} – Sunday {report.weekEnd}</strong></p>
  <p className="ops-note">Historical average: four complete Monday–Sunday weeks, {report.baselineStart} – {report.baselineEnd}. Sales available through {report.salesThrough??'unknown'}; this is imported data, not a live till count.</p>
- <div className="ops-notice">Dessert is one combined category alongside the other menu items. A weekly prep par is the number of servings you plan to cover for Monday–Sunday. “Remaining to par” is par minus recorded sales—not stock on hand. Ingredient order pars still include supplier lead time and buffer stock in the weekly order list.</div>
+ <div className="ops-notice">{isWedge?<>Dessert is one combined category alongside the other menu items. A weekly prep par is the number of servings you plan to cover for Monday–Sunday. “Remaining to par” is par minus recorded sales—not stock on hand. Ingredient order pars still include supplier lead time and buffer stock in the weekly order list.</>:<>Curd Nerd keeps each item and variation separate by selling unit: cheese sold by weight stays in lb; each-based items stay in each. Weekly sales pars cover Monday–Sunday demand. Remaining to par is target minus sales, not stock on hand. Stock pars and supplier ordering remain in the weekly order list.</>}</div>
  {!hasCurrent?<p className="ops-notice" role="status">No sales have been imported for this week yet. Progress stays blank until current-week sales arrive.</p>:report.salesThrough!<report.today&&<p className="ops-notice">This week is partial: sales are only available through {report.salesThrough}. Later sales are not included in progress.</p>}
  {notice&&<p className="ops-notice" role="status">{notice}</p>}
  {editing&&<form className="inv-editor ops-section" onSubmit={save} aria-label="Weekly par editor">
@@ -45,8 +45,8 @@ export function WeeklyMenuPars({businessId,canEdit,onEditingChange}:{businessId:
  </form>}
  <p className="ops-note">Units use explicit Square or historical labels first, then a consistent unit for the same item and variation. If neither exists, fractional quantities use lb and whole quantities use each. Conflicting item units remain unverified. Current-week progress also requires imported sales.</p>
  <p className="ops-notice">Starting suggestions use corrected sales across the last four completed Monday–Sunday weeks, divided by four and rounded up (whole servings or 0.01 for measured units). No extra buffer is added. Review event sales, seasonality, waste, and upcoming bookings before saving. Suggestions are not active pars until you save them.</p>
- <div className="ops-filters"><label>Find menu item or dessert<input value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label></div>
- <div className="ops-table-wrap"><table aria-label="Weekly prep par progress"><thead><tr><th>Menu item</th><th className="num">Last 4 weeks sold</th><th className="num">Average / week</th><th className="num">Suggested par</th><th className="num">Saved weekly par</th><th className="num">Sold this week</th><th className="num">Remaining to par</th><th>Week progress</th><th>Action</th></tr></thead><tbody>{visible.slice(page*15,(page+1)*15).map(row=>{
+ <div className="ops-filters"><label>{isWedge?'Find menu item or dessert':'Find item or variation'}<input value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label></div>
+ <div className="ops-table-wrap"><table aria-label="Weekly prep par progress"><thead><tr><th>{isWedge?'Menu item':'Item / variation'}</th><th className="num">Last 4 weeks sold</th><th className="num">Average / week</th><th className="num">Suggested par</th><th className="num">Saved weekly par</th><th className="num">Sold this week</th><th className="num">Remaining to par</th><th>Week progress</th><th>Action</th></tr></thead><tbody>{visible.slice(page*15,(page+1)*15).map(row=>{
  const progress=weeklyParProgress(row,report);const suggested=suggestedWeeklyPar(row,report);
  return <tr key={JSON.stringify(row.key)}><td><strong>{row.name}</strong><span className="ops-cell-note">{row.variation|| (row.key[0]==='category'?'All dessert selections':'Standard variation')} · {row.unit}</span>{row.key[0]==='category'&&<details><summary>Included desserts</summary><p className="ops-note">{row.members.length?row.members.join(', '):'No dessert sales in this period.'}</p></details>}</td>
  <td className="num">{number(row.baselineKnown)} {row.unit}{Number(row.baselineUnknown)!==0&&<span className="ops-cell-note">+ {number(row.baselineUnknown)} {row.confirmed?row.unit:'unverified units'}</span>}</td>
@@ -60,6 +60,6 @@ export function WeeklyMenuPars({businessId,canEdit,onEditingChange}:{businessId:
  })}</tbody></table></div>
  {!visible.length&&<p className="ops-notice">No menu items match this view.</p>}
  {visible.length>15&&<div className="ops-pagination"><span>{page*15+1}–{Math.min((page+1)*15,visible.length)} of {visible.length}</span><button disabled={!page} onClick={()=>setPage(p=>p-1)}>Previous items</button><button disabled={(page+1)*15>=visible.length} onClick={()=>setPage(p=>p+1)}>Next items</button></div>}
- <p className="ops-note">A partial week is never averaged as a completed week. Dessert progress counts servings across the category; ingredient demand still uses each dessert’s own recipe. Weekly pars repeat each week until you edit them. Spoilage, production, reservations, and incoming stock are not inferred from sales.</p>
+ <p className="ops-note">A partial week is never averaged as a completed week. {isWedge?'Dessert progress counts servings across the category; ingredient demand still uses each dessert’s own recipe.':'Pounds and each are never combined. Weekly sales targets do not automatically change inventory stock pars.'} Weekly pars repeat each week until you edit them. Spoilage, production, reservations, and incoming stock are not inferred from sales.</p>
  </section>;
 }
